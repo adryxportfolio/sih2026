@@ -1,39 +1,43 @@
 /**
  * OpenRouter gateway.
  *
- * ONE MODEL, DELIBERATELY: deepseek/deepseek-v4-flash.
- *
- * Every LLM call in the product goes through here, so that:
- *   · the API key never leaves the server,
- *   · there is exactly one place that knows which model we use,
- *   · every call is retried, cost-accounted and audited.
- *
- * Why a single model is the right call rather than a limitation
+ * TWO MODELS, WITH A CLEAR DIVISION OF LABOUR
  * ─────────────────────────────────────────────────────────────────────────
- *  · 1M token context — an entire training handbook fits in one call, so
- *    there is no chunk-stitching and no cross-chunk inconsistency in the
- *    questions we generate.
- *  · ~$0.09 / M input — generating a 20-question quiz from a 150-page PDF
- *    costs well under a cent, which is what makes per-learner, on-demand
- *    generation viable for a workforce of thousands rather than a demo.
- *  · Strict JSON-schema structured output — decoding is grammar-constrained,
- *    so the response shape is guaranteed rather than parsed and prayed over.
+ *   TEXT    deepseek/deepseek-v4-flash    1M ctx · ~$0.09/M in · text only
+ *   VISION  moonshotai/kimi-k2.5          262K ctx · ~$0.45/M in · sees images
  *
- * Known constraint, handled explicitly: this model is TEXT-ONLY. Scanned
- * documents with no text layer cannot be read, and `process-material` returns
- * a clear error rather than silently indexing an empty document.
+ * Everything that is words goes to DeepSeek. Its 1M window means an entire
+ * training handbook fits in one call, so generated questions cannot
+ * contradict each other across chunk boundaries, and at $0.09/M a full quiz
+ * from a 150-page PDF costs well under a cent — which is what makes
+ * per-learner, on-demand generation viable for a workforce of thousands.
+ *
+ * Kimi k2.5 is called for one job only: reading pages that have no text
+ * layer. A large share of Indian government training material is scanned,
+ * and a text-only pipeline would silently index those as empty documents and
+ * then generate confident nonsense from nothing. Vision is 5× the price, so
+ * it runs only when the cheap path has already demonstrably failed.
+ *
+ * Note that document *parsing* is not an AI problem and no model touches it:
+ * PDFs go through unpdf's text layer, PPTX/DOCX are ZIP archives of XML that
+ * we read directly. Using a vision model there would be slower, costlier and
+ * less accurate than reading the file format.
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-/** The one model. Overridable by env for ops, not by callers. */
+/** Text workhorse. */
 export function activeModel(): string {
   return Deno.env.get("MODEL_PRIMARY") ?? "deepseek/deepseek-v4-flash";
 }
 
-/** True when the active model can read images. Used to gate OCR paths. */
+/** Vision specialist, used only for pages with no extractable text. */
+export function visionModel(): string {
+  return Deno.env.get("MODEL_VISION") ?? "moonshotai/kimi-k2.5";
+}
+
 export function modelSupportsVision(): boolean {
-  return /vision/i.test(activeModel());
+  return Boolean(visionModel());
 }
 
 export type ImagePart = { type: "image_url"; image_url: { url: string } };
@@ -46,6 +50,8 @@ export interface ChatMessage {
 }
 
 export interface ChatOptions {
+  /** Route to the vision model. Only set this when the payload has images. */
+  vision?: boolean;
   messages: ChatMessage[];
   /** JSON Schema for strict structured output. Strongly preferred over prose parsing. */
   schema?: { name: string; schema: Record<string, unknown> };
@@ -161,7 +167,7 @@ export function extractJson<T>(content: string): T | null {
 }
 
 export async function chat<T = unknown>(opts: ChatOptions): Promise<ChatResult<T>> {
-  const model = activeModel();
+  const model = opts.vision ? visionModel() : activeModel();
   const maxRetries = opts.retries ?? 2;
   const timeoutMs = opts.timeoutMs ?? 90_000;
   let lastError: unknown = null;

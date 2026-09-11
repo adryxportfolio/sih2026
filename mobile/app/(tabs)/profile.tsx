@@ -111,7 +111,7 @@ export default function Profile() {
       </Card>
 
       <SectionHeader title="Ministry view" icon="business-outline" />
-      <Card level={2} onPress={() => router.push("/admin")}>
+      <Card level={2} onPress={() => router.push("/(admin)")}>
         <Row justify="space-between">
           <Row gap={space.md} style={{ flex: 1 }}>
             <View style={{

@@ -290,6 +290,10 @@ export default function Today() {
                        sub="Generate a quiz" onPress={() => router.push("/(tabs)/library")} />
           <QuickAction icon="chatbubbles" label="Ask the tutor"
                        sub="Grounded in your notes" onPress={() => router.push("/tutor")} />
+          <QuickAction icon="git-branch" label="Adaptive test"
+                       sub="Measures you in ~10 Qs" onPress={() => router.push("/assessment")} />
+          <QuickAction icon="school" label="iGOT courses"
+                       sub="Matched to your gaps" onPress={() => router.push("/(tabs)/path")} />
         </Row>
       </Animated.View>
     </Screen>

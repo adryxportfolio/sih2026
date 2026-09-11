@@ -16,17 +16,17 @@ import { View, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme, space, radius, elevation } from "../src/theme";
+import { useTheme, space, radius, elevation } from "../../src/theme";
 import {
   Screen, Txt, Row, Card, Badge, Button, SectionHeader, Divider,
   IconButton, ProgressBar, Chip, StatTile, useOnInverse,
-} from "../src/components/ui";
-import { Sparkline, ProgressRing } from "../src/components/charts";
-import { CountUp, Appear, Stagger, GrowBar } from "../src/components/motion";
+} from "../../src/components/ui";
+import { Sparkline, ProgressRing } from "../../src/components/charts";
+import { CountUp, Appear, Stagger, GrowBar } from "../../src/components/motion";
 import {
   DEMO_ORG_SUMMARY, DEMO_ORG_GAPS, DEMO_FAMILY_HEALTH,
   DEMO_TRAINING_DEMAND, DEMO_OFFICE_BREAKDOWN, DEMO_ORG_TREND,
-} from "../src/lib/demo";
+} from "../../src/lib/demo";
 
 type Tab = "gaps" | "demand" | "offices";
 
@@ -54,13 +54,10 @@ export default function AdminDashboard() {
   return (
     <Screen>
       {/* Header */}
-      <Row gap={space.md} style={{ marginTop: space.sm, marginBottom: space.lg }}>
-        <IconButton icon="chevron-back" tone="plain" onPress={() => router.back()} />
-        <View style={{ flex: 1 }}>
-          <Txt variant="overline" tone="muted">NODAL OFFICER VIEW</Txt>
-          <Txt variant="h2" style={{ marginTop: 2 }}>Workforce Intelligence</Txt>
-        </View>
-      </Row>
+      <View style={{ marginTop: space.sm, marginBottom: space.lg }}>
+        <Txt variant="overline" tone="muted">ADMINISTRATOR</Txt>
+        <Txt variant="h1" style={{ marginTop: 2 }}>Workforce Intelligence</Txt>
+      </View>
 
       <Txt variant="small" tone="muted" style={{ marginBottom: space.base }}>
         {s.organisation}

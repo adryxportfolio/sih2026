@@ -188,13 +188,12 @@ export default function Insights() {
                 </View>
               ))}
 
-              <Button
-                label="Generate plan from this"
-                icon="map"
-                full
-                onPress={() => router.push("/(tabs)/path")}
-                style={{ marginTop: space.sm }}
-              />
+              <Row gap={space.sm} style={{ marginTop: space.sm }}>
+                <Button label="Generate plan" icon="map" style={{ flex: 1 }}
+                        onPress={() => router.push("/(tabs)/path")} />
+                <Button label="Take diagnostic" icon="git-branch" variant="secondary"
+                        style={{ flex: 1 }} onPress={() => router.push("/assessment")} />
+              </Row>
             </Animated.View>
           ) : null}
         </Card>

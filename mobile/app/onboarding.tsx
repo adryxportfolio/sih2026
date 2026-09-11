@@ -415,7 +415,7 @@ export default function Onboarding() {
               iconRight="arrow-forward"
               size="lg"
               style={{ flex: 2 }}
-              onPress={async () => { await finish(); router.push("/quiz/demo-quiz-01"); }}
+              onPress={async () => { await finish(); router.push("/assessment"); }}
             />
           </Row>
         ) : (

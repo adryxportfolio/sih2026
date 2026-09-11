@@ -3,8 +3,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { DEMO_USER } from "../lib/demo";
+import { heartbeat, type Activity } from "../lib/api";
+import { AppState } from "react-native";
 
 const DEMO_KEY = "samiksha.demoMode";
+const DEMO_ROLE_KEY = "samiksha.demoRole";
 
 export interface Profile {
   id: string;
@@ -31,12 +34,17 @@ interface SessionContextValue {
   profile: Profile | null;
   /** Demo mode renders the full journey from local data with no network. */
   isDemo: boolean;
+  /** Demo, but as an administrator — routes to the admin app. */
+  isDemoAdmin: boolean;
   isAuthed: boolean;
+  isAdmin: boolean;
   needsOnboarding: boolean;
+  /** Tell the presence system what the officer is doing right now. */
+  setActivity: (activity: Activity, entity?: string | null) => void;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
-  enterDemo: () => Promise<void>;
+  enterDemo: (asAdmin?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
 }
@@ -66,6 +74,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [isDemoAdmin, setIsDemoAdmin] = useState(false);
+  const activityRef = useRef<{ activity: Activity; entity: string | null }>({
+    activity: "browsing", entity: null,
+  });
 
   // Supabase fires INITIAL_SESSION with a null session on mount. Without this
   // guard that event resets the demo profile the moment we set it.
@@ -87,8 +99,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const demoFlag = await AsyncStorage.getItem(DEMO_KEY);
       if (demoFlag === "1") {
+        const demoRole = await AsyncStorage.getItem(DEMO_ROLE_KEY);
         demoRef.current = true;
-        if (!cancelled) { setIsDemo(true); setProfile(DEMO_PROFILE); setLoading(false); }
+        if (!cancelled) {
+          setIsDemo(true);
+          setIsDemoAdmin(demoRole === "admin");
+          setProfile(demoRole === "admin"
+            ? { ...DEMO_PROFILE, full_name: "System Administrator",
+                designation: "Platform Administrator", role: "admin" }
+            : DEMO_PROFILE);
+          setLoading(false);
+        }
         return;
       }
 
@@ -123,8 +144,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [loadProfile]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    return error ? { error: error.message } : {};
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(), password,
+    });
+    if (error) return { error: error.message };
+    // Stamp the login so the admin roster can show who has actually used the
+    // credentials they were issued.
+    if (data.user) {
+      supabase.from("profiles")
+        .update({ last_login_at: new Date().toISOString() })
+        .eq("id", data.user.id)
+        .then(undefined, () => {});
+    }
+    return {};
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
@@ -137,21 +169,56 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await AsyncStorage.removeItem(DEMO_KEY);
+    await AsyncStorage.multiRemove([DEMO_KEY, DEMO_ROLE_KEY]);
     demoRef.current = false;
     setIsDemo(false);
+    setIsDemoAdmin(false);
     setProfile(null);
     setSession(null);
     if (isSupabaseConfigured) await supabase.auth.signOut();
   }, []);
 
-  const enterDemo = useCallback(async () => {
+  const enterDemo = useCallback(async (asAdmin = false) => {
     await AsyncStorage.setItem(DEMO_KEY, "1");
+    await AsyncStorage.setItem(DEMO_ROLE_KEY, asAdmin ? "admin" : "learner");
     demoRef.current = true;
     setIsDemo(true);
-    setProfile(DEMO_PROFILE);
+    setIsDemoAdmin(asAdmin);
+    setProfile(asAdmin
+      ? { ...DEMO_PROFILE, full_name: "System Administrator",
+          designation: "Platform Administrator", role: "admin" }
+      : DEMO_PROFILE);
     setLoading(false);
   }, []);
+
+  // ── Presence heartbeat ────────────────────────────────────────────────────
+  // Every 45s while the app is foregrounded, and immediately on foreground so
+  // an admin watching the live board sees someone come back without waiting
+  // out the interval. Paused in the background: a phone in a pocket is not an
+  // officer studying, and reporting it as such would make the admin metrics
+  // meaningless.
+  const setActivity = useCallback((activity: Activity, entity: string | null = null) => {
+    activityRef.current = { activity, entity };
+    if (!isDemo && session?.user) heartbeat(activity, entity);
+  }, [isDemo, session]);
+
+  useEffect(() => {
+    if (isDemo || !session?.user) return;
+
+    const beat = () => {
+      const { activity, entity } = activityRef.current;
+      heartbeat(activity, entity);
+    };
+
+    beat();
+    const id = setInterval(beat, 45_000);
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") beat();
+    });
+
+    return () => { clearInterval(id); sub.remove(); };
+  }, [isDemo, session]);
 
   const refreshProfile = useCallback(async () => {
     if (isDemo || !session?.user) return;
@@ -173,10 +240,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     user: session?.user ?? null,
     profile,
     isDemo,
+    isDemoAdmin,
     isAuthed: isDemo || !!session?.user,
-    needsOnboarding: !isDemo && !!session?.user && !profile?.onboarded_at,
+    isAdmin: isDemoAdmin || profile?.role === "admin" || profile?.role === "nodal_officer",
+    needsOnboarding:
+      !isDemo && !!session?.user && !profile?.onboarded_at &&
+      profile?.role !== "admin" && profile?.role !== "nodal_officer",
+    setActivity,
     signIn, signUp, signOut, enterDemo, refreshProfile, updateProfile,
-  }), [loading, session, profile, isDemo, signIn, signUp, signOut, enterDemo, refreshProfile, updateProfile]);
+  }), [loading, session, profile, isDemo, isDemoAdmin, setActivity,
+       signIn, signUp, signOut, enterDemo, refreshProfile, updateProfile]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

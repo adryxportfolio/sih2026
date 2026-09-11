@@ -10,13 +10,16 @@
  *  PPTX    slide XML + speaker notes, slide order preserved.
  *  DOCX    document XML, split on explicit page breaks.
  *  Text    used as-is.
- *  Images  require a vision-capable model.
+ *  Images  vision OCR.
  *
- * VISION: the active model (deepseek-v4-flash) is TEXT-ONLY. A scanned PDF has
- * no text layer, so rather than silently indexing an empty document — which
- * would then generate confident nonsense — we detect the thin text layer and
- * fail with an explicit, actionable message. `modelSupportsVision()` gates the
- * OCR path so it lights up automatically if a vision model is ever configured.
+ * None of the above needs a model. Parsing a file format is a solved problem,
+ * and doing it with an LLM would be slower, costlier and less accurate.
+ *
+ * VISION IS THE FALLBACK, NOT THE PATH. A scanned PDF is page images with no
+ * text layer, and much Indian government training material is exactly that.
+ * When the cheap path yields implausibly little text per page, we escalate to
+ * Kimi k2.5 to transcribe. Because vision costs ~5× the text model, it runs
+ * only after the text layer has demonstrably failed.
  *
  * Embeddings use Supabase Edge Runtime's built-in `gte-small` (384-dim).
  * It runs in-process, costs nothing, and needs no third-party embedding API.
@@ -117,7 +120,8 @@ function chunkPages(pages: string[], target = 1200, overlap = 150): Chunk[] {
 async function ocrViaVision(
   dataUrl: string, userId: string, pageHint: string,
 ): Promise<{ text: string; model: string; cost: number }> {
-  const r = await chat<unknown>({           // Kimi k2.5 — vision-capable
+  const r = await chat<unknown>({
+    vision: true,               // routes to Kimi k2.5
     task: "ocr_material",
     userId,
     temperature: 0.1,

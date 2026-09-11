@@ -49,9 +49,9 @@ export default function SignIn() {
     router.replace("/(tabs)");
   };
 
-  const goDemo = async () => {
-    await enterDemo();
-    router.replace("/(tabs)");
+  const goDemo = async (asAdmin = false) => {
+    await enterDemo(asAdmin);
+    router.replace(asAdmin ? "/(admin)" : "/(tabs)");
   };
 
   const inputStyle = {
@@ -233,23 +233,49 @@ export default function SignIn() {
             <Card
               level={1}
               tone="primary"
-              onPress={goDemo}
-              style={{ borderStyle: "dashed", borderWidth: 1.5, borderColor: t.color.primary + "55" }}
+              onPress={() => goDemo(false)}
+              style={{ borderStyle: "dashed", borderWidth: 1.5, borderColor: t.color.borderStrong }}
             >
               <Row gap={space.md}>
                 <View style={{
                   width: 42, height: 42, borderRadius: radius.md,
-                  backgroundColor: t.color.primary, alignItems: "center", justifyContent: "center",
+                  backgroundColor: t.color.bgInverse, alignItems: "center", justifyContent: "center",
                 }}>
-                  <Ionicons name="play" size={20} color={t.color.onPrimary} />
+                  <Ionicons name="person" size={19} color={t.color.textInverse} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Txt variant="bodyMd">Explore the demo</Txt>
+                  <Txt variant="bodyMd">Officer demo</Txt>
                   <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                    Full journey with sample data · works offline
+                    The learner journey · works offline
                   </Txt>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={t.color.primary} />
+                <Ionicons name="chevron-forward" size={18} color={t.color.textMuted} />
+              </Row>
+            </Card>
+
+            <Card
+              level={1}
+              onPress={() => goDemo(true)}
+              style={{
+                marginTop: space.md,
+                borderStyle: "dashed", borderWidth: 1.5, borderColor: t.color.borderStrong,
+              }}
+            >
+              <Row gap={space.md}>
+                <View style={{
+                  width: 42, height: 42, borderRadius: radius.md,
+                  backgroundColor: t.color.bgSunken, alignItems: "center", justifyContent: "center",
+                  borderWidth: StyleSheet.hairlineWidth, borderColor: t.color.borderStrong,
+                }}>
+                  <Ionicons name="shield-checkmark" size={19} color={t.color.text} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt variant="bodyMd">Administrator demo</Txt>
+                  <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>
+                    Workforce intelligence · live board · officer records
+                  </Txt>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={t.color.textMuted} />
               </Row>
             </Card>
 

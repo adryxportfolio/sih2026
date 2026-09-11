@@ -484,3 +484,224 @@ export const DEMO_OFFICE_BREAKDOWN = [
 
 /** 8-quarter workforce competency trend. */
 export const DEMO_ORG_TREND = [0.54, 0.56, 0.58, 0.59, 0.62, 0.63, 0.65, 0.67];
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  OFFICER ROSTER — shape matches v_admin_officer_overview exactly, so the
+//  admin screens are identical in demo and live mode.
+// ═══════════════════════════════════════════════════════════════════════════
+function mins(n: number) { return new Date(Date.now() - n * 60000).toISOString(); }
+
+export const DEMO_OFFICERS = [
+  { user_id: "d1", full_name: "Ananya Deshmukh", email: "ananya.deshmukh@des.mh.gov.in",
+    employee_code: "MH-JSO-4471", designation: "Junior Statistical Officer",
+    role_code: "JSO", role_name: "Junior Statistical Officer", years_of_service: 4,
+    xp: 4820, streak_current: 12, last_login_at: mins(3), is_active: true, onboarded_at: mins(9000),
+    presence: "online", last_seen_at: mins(0.5), current_activity: "reviewing",
+    current_entity: "Design Weights — Active Recall",
+    competencies_mapped: 17, competencies_met: 7, critical_gaps: 4,
+    avg_score: 1.82, avg_confidence: 0.63,
+    top_gap_name: "Python for Data Analysis", top_gap_code: "TEC-PY-01",
+    next_step: "Two-Stage Sampling Weights, Worked Example",
+    minutes_last_7d: 214, quizzes_completed: 11, cards_due: 4 },
+
+  { user_id: "d2", full_name: "Rahul Verma", email: "rahul.verma@des.mh.gov.in",
+    employee_code: "MH-SSO-2210", designation: "Senior Statistical Officer",
+    role_code: "SSO", role_name: "Senior Statistical Officer", years_of_service: 11,
+    xp: 9140, streak_current: 27, last_login_at: mins(12), is_active: true, onboarded_at: mins(26000),
+    presence: "online", last_seen_at: mins(1), current_activity: "quiz",
+    current_entity: "SQL Joins & NULL Semantics",
+    competencies_mapped: 19, competencies_met: 13, critical_gaps: 2,
+    avg_score: 2.61, avg_confidence: 0.78,
+    top_gap_name: "Machine Learning for Official Statistics", top_gap_code: "TEC-ML-01",
+    next_step: "ML in Official Statistics (TPAC)",
+    minutes_last_7d: 341, quizzes_completed: 24, cards_due: 0 },
+
+  { user_id: "d3", full_name: "Priya Nair", email: "priya.nair@des.mh.gov.in",
+    employee_code: "MH-ASD-0912", designation: "Assistant Director (Statistics)",
+    role_code: "ASD", role_name: "Assistant Director (Statistics)", years_of_service: 15,
+    xp: 12300, streak_current: 5, last_login_at: mins(46), is_active: true, onboarded_at: mins(40000),
+    presence: "away", last_seen_at: mins(6), current_activity: "tutor",
+    current_entity: "Asking about imputation variance",
+    competencies_mapped: 22, competencies_met: 16, critical_gaps: 3,
+    avg_score: 2.88, avg_confidence: 0.81,
+    top_gap_name: "Data Privacy and the DPDP Act", top_gap_code: "DIG-PRIV-01",
+    next_step: "DPDP Act Compliance for Statistical Work",
+    minutes_last_7d: 168, quizzes_completed: 31, cards_due: 12 },
+
+  { user_id: "d4", full_name: "Suresh Patil", email: "suresh.patil@des.mh.gov.in",
+    employee_code: "MH-FI-8830", designation: "Field Investigator",
+    role_code: "FI", role_name: "Field Investigator", years_of_service: 7,
+    xp: 1240, streak_current: 0, last_login_at: mins(2880), is_active: true, onboarded_at: mins(12000),
+    presence: "offline", last_seen_at: mins(2880), current_activity: null, current_entity: null,
+    competencies_mapped: 9, competencies_met: 3, critical_gaps: 4,
+    avg_score: 1.14, avg_confidence: 0.38,
+    top_gap_name: "Data Privacy and the DPDP Act", top_gap_code: "DIG-PRIV-01",
+    next_step: "Cybersecurity Essentials",
+    minutes_last_7d: 0, quizzes_completed: 2, cards_due: 31 },
+
+  { user_id: "d5", full_name: "Meera Iyer", email: "meera.iyer@des.mh.gov.in",
+    employee_code: "MH-JSO-5514", designation: "Junior Statistical Officer",
+    role_code: "JSO", role_name: "Junior Statistical Officer", years_of_service: 2,
+    xp: 2960, streak_current: 8, last_login_at: mins(7), is_active: true, onboarded_at: mins(5200),
+    presence: "online", last_seen_at: mins(0.2), current_activity: "video",
+    current_entity: "Stratified Sampling — Clearly Explained",
+    competencies_mapped: 16, competencies_met: 5, critical_gaps: 5,
+    avg_score: 1.46, avg_confidence: 0.52,
+    top_gap_name: "SQL and Database Querying", top_gap_code: "TEC-SQL-01",
+    next_step: "SQL for Data Management in Government",
+    minutes_last_7d: 189, quizzes_completed: 7, cards_due: 6 },
+
+  { user_id: "d6", full_name: "Arjun Kulkarni", email: "arjun.kulkarni@des.mh.gov.in",
+    employee_code: "MH-DD-0044", designation: "Deputy Director (NSO)",
+    role_code: "DD", role_name: "Deputy Director (NSO)", years_of_service: 19,
+    xp: 15680, streak_current: 41, last_login_at: mins(95), is_active: true, onboarded_at: mins(52000),
+    presence: "away", last_seen_at: mins(8), current_activity: "reading",
+    current_entity: "SQAF Guidelines 2024",
+    competencies_mapped: 24, competencies_met: 19, critical_gaps: 1,
+    avg_score: 3.12, avg_confidence: 0.86,
+    top_gap_name: "Big Data Processing", top_gap_code: "TEC-BIGD-01",
+    next_step: "Big Data and Administrative Data for Official Statistics",
+    minutes_last_7d: 276, quizzes_completed: 44, cards_due: 2 },
+
+  { user_id: "d7", full_name: "Kavita Joshi", email: "kavita.joshi@des.mh.gov.in",
+    employee_code: "MH-SSO-3307", designation: "Senior Statistical Officer",
+    role_code: "SSO", role_name: "Senior Statistical Officer", years_of_service: 9,
+    xp: 6410, streak_current: 3, last_login_at: mins(420), is_active: true, onboarded_at: mins(18000),
+    presence: "offline", last_seen_at: mins(420), current_activity: null, current_entity: null,
+    competencies_mapped: 19, competencies_met: 10, critical_gaps: 3,
+    avg_score: 2.21, avg_confidence: 0.69,
+    top_gap_name: "Geospatial Analysis and GIS", top_gap_code: "TEC-GIS-01",
+    next_step: "GIS for Statistical Applications (TPAC)",
+    minutes_last_7d: 94, quizzes_completed: 18, cards_due: 9 },
+
+  { user_id: "d8", full_name: "Vikram Shinde", email: "vikram.shinde@des.mh.gov.in",
+    employee_code: "MH-FI-9102", designation: "Field Investigator",
+    role_code: "FI", role_name: "Field Investigator", years_of_service: 3,
+    xp: 380, streak_current: 0, last_login_at: mins(11520), is_active: false, onboarded_at: null,
+    presence: "offline", last_seen_at: null, current_activity: null, current_entity: null,
+    competencies_mapped: 0, competencies_met: 0, critical_gaps: 0,
+    avg_score: null, avg_confidence: null,
+    top_gap_name: null, top_gap_code: null, next_step: null,
+    minutes_last_7d: 0, quizzes_completed: 0, cards_due: 0 },
+];
+
+/** Live activity feed for the admin dashboard. */
+export const DEMO_ACTIVITY_FEED = [
+  { id: 1, who: "Rahul Verma",     what: "answered a question on SQL joins",              detail: "correct · difficulty 2.8", ago: "just now" },
+  { id: 2, who: "Meera Iyer",      what: "started watching Stratified Sampling",          detail: "FUN-SAMP-01",              ago: "1m ago" },
+  { id: 3, who: "Ananya Deshmukh", what: "reviewed 4 flashcards",                         detail: "3 recalled · 1 lapse",     ago: "2m ago" },
+  { id: 4, who: "Priya Nair",      what: "asked the tutor about imputation variance",     detail: "grounded in uploaded PDF", ago: "6m ago" },
+  { id: 5, who: "Arjun Kulkarni",  what: "completed SQAF Guidelines 2024",                detail: "32 pages · 14 chunks",     ago: "8m ago" },
+  { id: 6, who: "Rahul Verma",     what: "closed a competency gap",                       detail: "FUN-QUAL-01 → proficient", ago: "22m ago" },
+  { id: 7, who: "Meera Iyer",      what: "scored 71% on Sampling Design",                 detail: "calibration error 0.19",   ago: "34m ago" },
+];
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ADAPTIVE ITEM POOL
+//  Spread across the difficulty range so the selector always has something
+//  informative to pick, whatever ability the officer turns out to have.
+// ═══════════════════════════════════════════════════════════════════════════
+export interface AdaptiveDemoItem {
+  id: string;
+  stem: string;
+  options: { id: string; text: string }[];
+  correct: string;
+  difficulty: number;
+  competency_code: string;
+  bloom: string;
+  explanation: string;
+}
+
+export const DEMO_ADAPTIVE_POOL: AdaptiveDemoItem[] = [
+  { id: "a1", difficulty: 0.5, competency_code: "FUN-SAMP-01", bloom: "remember",
+    stem: "In a simple random sample, every unit in the population has:",
+    options: [{id:"a",text:"An equal probability of selection"},{id:"b",text:"A probability proportional to its size"},{id:"c",text:"A probability decided by the enumerator"},{id:"d",text:"Zero probability unless it is in a stratum"}],
+    correct: "a",
+    explanation: "Equal probability of selection is the defining property of SRS." },
+
+  { id: "a2", difficulty: 0.8, competency_code: "TEC-SQL-01", bloom: "remember",
+    stem: "Which SQL clause filters rows BEFORE any aggregation is applied?",
+    options: [{id:"a",text:"HAVING"},{id:"b",text:"WHERE"},{id:"c",text:"GROUP BY"},{id:"d",text:"ORDER BY"}],
+    correct: "b",
+    explanation: "WHERE filters rows before grouping; HAVING filters groups after aggregation." },
+
+  { id: "a3", difficulty: 1.0, competency_code: "DIG-PRIV-01", bloom: "understand",
+    stem: "Under the DPDP Act 2023, 'purpose limitation' means personal data may be:",
+    options: [{id:"a",text:"Retained indefinitely if it was lawfully collected"},{id:"b",text:"Used only for the purpose it was collected for"},{id:"c",text:"Shared freely between government departments"},{id:"d",text:"Collected without notice for statistical use"}],
+    correct: "b",
+    explanation: "Purpose limitation restricts use to the stated purpose of collection." },
+
+  { id: "a4", difficulty: 1.2, competency_code: "FUN-CLEAN-01", bloom: "understand",
+    stem: "An 'edit rule' in statistical data processing is used to:",
+    options: [{id:"a",text:"Impute values that are missing"},{id:"b",text:"Detect records that are internally inconsistent"},{id:"c",text:"Weight records to the population"},{id:"d",text:"Suppress disclosive cells"}],
+    correct: "b",
+    explanation: "Edit rules detect inconsistency; imputation is the separate step that treats it." },
+
+  { id: "a5", difficulty: 1.5, competency_code: "FUN-SAMP-01", bloom: "understand",
+    stem: "Stratification reduces sampling variance primarily by:",
+    options: [{id:"a",text:"Increasing the sample size"},{id:"b",text:"Removing between-stratum variation from the sampling error"},{id:"c",text:"Eliminating non-response"},{id:"d",text:"Making selection probabilities equal"}],
+    correct: "b",
+    explanation: "Fixing the allocation across strata removes the between-stratum component." },
+
+  { id: "a6", difficulty: 1.7, competency_code: "TEC-SQL-01", bloom: "apply",
+    stem: "A LEFT JOIN returns no matching row on the right. What do the right-hand columns contain?",
+    options: [{id:"a",text:"Zero"},{id:"b",text:"Empty string"},{id:"c",text:"NULL"},{id:"d",text:"The row is dropped entirely"}],
+    correct: "c",
+    explanation: "Unmatched right-hand columns are NULL — which is why COUNT(col) and COUNT(*) then differ." },
+
+  { id: "a7", difficulty: 1.9, competency_code: "FUN-QUAL-01", bloom: "understand",
+    stem: "Under SQAF, a release that is perfectly accurate but two months late fails on:",
+    options: [{id:"a",text:"Accuracy and reliability"},{id:"b",text:"Timeliness and punctuality"},{id:"c",text:"Coherence and comparability"},{id:"d",text:"It does not fail — accuracy is what matters"}],
+    correct: "b",
+    explanation: "SQAF treats timeliness as a distinct quality dimension, assessed independently of accuracy." },
+
+  { id: "a8", difficulty: 2.1, competency_code: "TEC-PY-01", bloom: "apply",
+    stem: "In pandas, df.groupby('district')['income'].mean() by default:",
+    options: [{id:"a",text:"Includes NaN values as zero"},{id:"b",text:"Excludes NaN values from the mean"},{id:"c",text:"Raises an error if NaN is present"},{id:"d",text:"Returns NaN for any group containing NaN"}],
+    correct: "b",
+    explanation: "pandas skips NaN by default (skipna=True) — which silently changes the denominator." },
+
+  { id: "a9", difficulty: 2.3, competency_code: "FUN-CLEAN-01", bloom: "analyze",
+    stem: "Mean-imputing a right-skewed income variable principally causes:",
+    options: [{id:"a",text:"An upward-biased mean"},{id:"b",text:"An understated variance, so intervals are too narrow"},{id:"c",text:"No effect below 10% missingness"},{id:"d",text:"The median to become undefined"}],
+    correct: "b",
+    explanation: "Imputed records carry no deviation, shrinking variance while the mean survives — which is why this error passes review." },
+
+  { id: "a10", difficulty: 2.5, competency_code: "FUN-SAMP-01", bloom: "apply",
+    stem: "A two-stage design selects villages by PPS, then 8 households by SRS within each. The design weight is:",
+    options: [{id:"a",text:"The inverse of the village selection probability only"},{id:"b",text:"The product of the inverses of both stage probabilities"},{id:"c",text:"Population divided by total households sampled"},{id:"d",text:"The inverse of the within-village probability only"}],
+    correct: "b",
+    explanation: "Overall selection probability is the product of the stages, so the weight is the product of their inverses." },
+
+  { id: "a11", difficulty: 2.7, competency_code: "TEC-ML-01", bloom: "evaluate",
+    stem: "Why might a high-accuracy black-box classifier be unacceptable for an official release?",
+    options: [{id:"a",text:"It is too slow to run"},{id:"b",text:"Its decisions cannot be explained or audited"},{id:"c",text:"Accuracy is not a valid metric"},{id:"d",text:"It cannot handle categorical variables"}],
+    correct: "b",
+    explanation: "Official statistics must be defensible. A figure you cannot explain is one you cannot publish." },
+
+  { id: "a12", difficulty: 2.9, competency_code: "FUN-CONF-01", bloom: "evaluate",
+    stem: "One establishment dominates 90% of a published cell. Primary suppression alone is insufficient because:",
+    options: [{id:"a",text:"Establishment data is not confidential"},{id:"b",text:"The value can be recovered by subtracting from published totals"},{id:"c",text:"Rounding already protects it"},{id:"d",text:"Suppression only applies to household data"}],
+    correct: "b",
+    explanation: "Residual disclosure through differencing is why secondary suppression is required." },
+
+  { id: "a13", difficulty: 3.1, competency_code: "FUN-ANAL-01", bloom: "analyze",
+    stem: "Ignoring the complex survey design when computing standard errors typically:",
+    options: [{id:"a",text:"Overstates the standard error"},{id:"b",text:"Understates it, because clustering is ignored"},{id:"c",text:"Has no effect if weights are applied"},{id:"d",text:"Only affects the point estimate"}],
+    correct: "b",
+    explanation: "Clustering induces positive intra-cluster correlation; ignoring it understates variance." },
+
+  { id: "a14", difficulty: 3.3, competency_code: "DOM-NAS-01", bloom: "analyze",
+    stem: "In a base-year revision of national accounts, a change in the deflator primarily affects:",
+    options: [{id:"a",text:"Nominal GVA only"},{id:"b",text:"Real growth rates across the series"},{id:"c",text:"Employment estimates"},{id:"d",text:"Nothing, if weights are unchanged"}],
+    correct: "b",
+    explanation: "Deflators convert nominal to real; changing them re-bases the entire real series." },
+
+  { id: "a15", difficulty: 3.6, competency_code: "FUN-SAMP-01", bloom: "create",
+    stem: "For a rotational panel where 25% of the sample is replaced each round, variance of the change estimate is reduced because:",
+    options: [{id:"a",text:"The sample size is larger"},{id:"b",text:"Overlapping units are positively correlated over time"},{id:"c",text:"Non-response is eliminated"},{id:"d",text:"Weights become equal"}],
+    correct: "b",
+    explanation: "Positive correlation between overlapping units reduces the variance of a difference." },
+];
