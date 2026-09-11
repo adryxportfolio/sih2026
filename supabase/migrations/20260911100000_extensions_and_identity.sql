@@ -20,10 +20,15 @@ create type public.app_role as enum (
 );
 
 -- FRAC competency taxonomy (Framework of Roles, Activities and Competencies)
+-- The four competency families the National Statistical System actually
+-- needs. 'functional' and 'domain' together cover statistical craft; the
+-- other two cover the modern skills the workforce is being asked to acquire.
 create type public.competency_type as enum (
-  'behavioural',    -- e.g. Communication, Decision Making
-  'functional',     -- e.g. Sampling Design, Data Quality Assurance
-  'domain'          -- e.g. National Accounts, Price Statistics
+  'behavioural',        -- Communication, Decision Making, Ethics
+  'functional',         -- Sampling Design, Data Quality Assurance
+  'domain',             -- National Accounts, Price Statistics, PLFS
+  'technical',          -- Python, R, SQL, GIS, ML, Cloud
+  'digital_governance'  -- Cybersecurity, DPDP Act, e-Sign, DPI
 );
 
 -- Proficiency ladder used across FRAC

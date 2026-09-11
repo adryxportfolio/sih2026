@@ -5,7 +5,7 @@ import { useSession } from "../src/store/session";
 import { useTheme } from "../src/theme";
 
 export default function Index() {
-  const { loading, isAuthed } = useSession();
+  const { loading, isAuthed, needsOnboarding } = useSession();
   const t = useTheme();
 
   if (loading) {
@@ -15,5 +15,9 @@ export default function Index() {
       </View>
     );
   }
-  return <Redirect href={isAuthed ? "/(tabs)" : "/(auth)/sign-in"} />;
+  if (!isAuthed) return <Redirect href="/(auth)/sign-in" />;
+  // A profile without measured competencies cannot produce a defensible
+  // recommendation, so onboarding is not skippable on first run.
+  if (needsOnboarding) return <Redirect href="/onboarding" />;
+  return <Redirect href="/(tabs)" />;
 }

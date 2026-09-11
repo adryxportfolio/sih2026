@@ -22,6 +22,7 @@ import { adminClient, userClient, requireUser } from "../_shared/supabase.ts";
 import { chat, logGeneration } from "../_shared/openrouter.ts";
 import { materialAnalysisSchema } from "../_shared/schemas.ts";
 import { extractText, getDocumentProxy } from "npm:unpdf@0.12.1";
+import { extractPptx, extractDocx, isPptx, isDocx } from "../_shared/officedocs.ts";
 
 // deno-lint-ignore no-explicit-any
 declare const Supabase: any;
@@ -35,35 +36,64 @@ interface Chunk {
 }
 
 /**
- * Split on paragraph boundaries into ~1200-char chunks with 150-char overlap.
- * Overlap keeps a concept that straddles a boundary retrievable from either
- * side; paragraph-awareness stops us cutting mid-sentence.
+ * Page-aware chunking.
+ *
+ * Chunks carry the page range they came from, so every generated question and
+ * every tutor citation can point at "page 17" rather than "somewhere in your
+ * document". For a government trainer reviewing an AI-generated assessment,
+ * that is the difference between verifiable and unauditable.
+ *
+ * ~1200-char chunks on paragraph boundaries with 150-char overlap: overlap
+ * keeps a concept that straddles a boundary retrievable from either side,
+ * paragraph-awareness stops us cutting mid-sentence.
  */
-function chunkText(text: string, target = 1200, overlap = 150): Chunk[] {
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-  const chunks: Chunk[] = [];
-  let buf = "";
-  let heading: string | null = null;
+function chunkPages(pages: string[], target = 1200, overlap = 150): Chunk[] {
+  // Flatten to paragraphs while remembering which page each came from.
+  type Para = { text: string; page: number };
+  const paras: Para[] = [];
+  pages.forEach((pageText, i) => {
+    for (const raw of pageText.split(/\n\s*\n/)) {
+      const text = raw.trim();
+      if (text) paras.push({ text, page: i + 1 });
+    }
+  });
 
   const isHeading = (p: string) =>
     p.length < 120 && (/^[A-Z0-9][^.!?]*$/.test(p) || /^(chapter|section|unit|part|\d+\.)/i.test(p));
 
+  const chunks: Chunk[] = [];
+  let buf = "";
+  let heading: string | null = null;
+  let pageFrom: number | null = null;
+  let pageTo: number | null = null;
+
   const flush = () => {
     const content = buf.trim();
     if (content.length > 40) {
-      chunks.push({ index: chunks.length, content, heading, pageFrom: null, pageTo: null });
+      chunks.push({
+        index: chunks.length,
+        content,
+        heading,
+        pageFrom,
+        pageTo,
+      });
     }
+    // Carry the tail forward as overlap; it belongs to the page we ended on.
     buf = content.length > overlap ? content.slice(-overlap) : "";
+    pageFrom = buf ? pageTo : null;
   };
 
-  for (const p of paragraphs) {
-    if (isHeading(p)) heading = p;
-    if ((buf + "\n\n" + p).length > target && buf.length > 0) flush();
-    buf += (buf ? "\n\n" : "") + p;
+  for (const p of paras) {
+    if (isHeading(p.text)) heading = p.text;
+    if ((buf + "\n\n" + p.text).length > target && buf.length > 0) flush();
+    if (pageFrom === null) pageFrom = p.page;
+    pageTo = p.page;
+    buf += (buf ? "\n\n" : "") + p.text;
   }
   flush();
 
-  // Very long single paragraphs (tables, dense prose) still need splitting
+  // Split any oversized chunk (dense tables, wall-of-text pages) but keep
+  // its page attribution.
   const final: Chunk[] = [];
   for (const c of chunks) {
     if (c.content.length <= target * 2) { final.push({ ...c, index: final.length }); continue; }
@@ -72,7 +102,8 @@ function chunkText(text: string, target = 1200, overlap = 150): Chunk[] {
         index: final.length,
         content: c.content.slice(i, i + target),
         heading: c.heading,
-        pageFrom: null, pageTo: null,
+        pageFrom: c.pageFrom,
+        pageTo: c.pageTo,
       });
     }
   }
@@ -149,6 +180,8 @@ Deno.serve(async (req) => {
 
     // ── 2. Extract ──────────────────────────────────────────────────────────
     let text = "";
+    // One entry per page, so chunks can be attributed to a page number.
+    let pages: string[] = [];
     let pageCount: number | null = null;
     let usedOcr = false;
     let ocrCost = 0;
@@ -157,8 +190,11 @@ Deno.serve(async (req) => {
       try {
         const pdf = await getDocumentProxy(bytes);
         pageCount = pdf.numPages;
-        const { text: pdfText } = await extractText(pdf, { mergePages: true });
-        text = Array.isArray(pdfText) ? pdfText.join("\n\n") : String(pdfText ?? "");
+        // mergePages:false returns an array — one string per page. That array
+        // is what makes page-level citation possible downstream.
+        const { text: pdfText } = await extractText(pdf, { mergePages: false });
+        pages = Array.isArray(pdfText) ? pdfText.map((p) => String(p ?? "")) : [String(pdfText ?? "")];
+        text = pages.join("\n\n");
       } catch (e) {
         console.warn("[process-material] pdf text layer failed", e);
       }
@@ -175,27 +211,48 @@ Deno.serve(async (req) => {
         );
         if (ocr.text.trim().length > text.trim().length) {
           text = ocr.text;
+          // OCR returns one blob; we lose exact page boundaries but keep a
+          // best-effort split on form-feed / explicit page markers.
+          pages = text.split(/\f|\n(?=\s*(?:Page|PAGE)\s+\d+\s*\n)/).filter((p) => p.trim());
+          if (pages.length < 2) pages = [text];
           usedOcr = true;
           ocrCost = ocr.cost;
         }
       }
+    } else if (isPptx(mime, material.storage_path)) {
+      // Slide decks are a large share of government training material, and a
+      // deck's speaker notes often carry the real explanation.
+      const deck = extractPptx(bytes);
+      pages = deck.pages;
+      text = deck.text;
+      pageCount = deck.slideCount ?? deck.pages.length;
+    } else if (isDocx(mime, material.storage_path)) {
+      const doc = extractDocx(bytes);
+      pages = doc.pages;
+      text = doc.text;
+      pageCount = doc.pages.length;
     } else if (mime.startsWith("image/")) {
       const b64 = btoa(String.fromCharCode(...bytes));
       const ocr = await ocrViaVision(`data:${mime};base64,${b64}`, userId, "Single page image.");
       text = ocr.text;
+      pages = [text];
       usedOcr = true;
       ocrCost = ocr.cost;
       pageCount = 1;
     } else if (mime.startsWith("text/") || /\.(txt|md|csv|json)$/i.test(material.storage_path)) {
       text = new TextDecoder().decode(bytes);
+      pages = [text];
     } else {
       return errorResponse(
-        `Unsupported file type: ${mime}. Supported: PDF, images (JPG/PNG/WebP), and plain text/markdown.`,
+        `Unsupported file type: ${mime}. Supported: PDF, PPTX, DOCX, images (JPG/PNG/WebP), and plain text/markdown.`,
         415,
       );
     }
 
     text = text.replace(/\r\n/g, "\n").replace(/\n{4,}/g, "\n\n\n").trim();
+    pages = (pages.length ? pages : [text]).map((p) =>
+      p.replace(/\r\n/g, "\n").replace(/\n{4,}/g, "\n\n\n").trim(),
+    );
 
     if (text.length < 50) {
       await supabase.from("materials").update({
@@ -215,7 +272,7 @@ Deno.serve(async (req) => {
     }).eq("id", material_id);
 
     // ── 3. Chunk ────────────────────────────────────────────────────────────
-    const chunks = chunkText(text);
+    const chunks = chunkPages(pages);
 
     // ── 4. Embed (Supabase built-in gte-small, 384-dim, free) ───────────────
     await supabase.from("materials").update({ status: "embedding" }).eq("id", material_id);
@@ -324,6 +381,8 @@ Deno.serve(async (req) => {
       page_count: pageCount,
       chunks: chunks.length,
       chunks_embedded: embedded,
+      pages_indexed: pages.length,
+      unit: isPptx(mime, material.storage_path) ? "slide" : "page",
       used_ocr: usedOcr,
       summary: a?.summary ?? null,
       key_topics: a?.key_topics ?? [],

@@ -49,27 +49,80 @@ function normalise(s: string): string {
     .trim();
 }
 
-/**
- * Is the claimed quote really in the source? We allow partial credit: if a
- * long-enough contiguous run of the quote appears, we accept it, because
- * models often trim or join across a line break.
- */
-function quoteIsGrounded(quote: string, haystack: string): boolean {
-  if (!quote || quote.length < 12) return false;
-  const q = normalise(quote);
-  const h = normalise(haystack);
-  if (h.includes(q)) return true;
+interface SourceChunk {
+  id: string;
+  chunk_index: number;
+  content: string;
+  page_from: number | null;
+  page_to: number | null;
+  heading: string | null;
+}
 
-  // Fall back to checking a solid inner window of the quote
-  const words = q.split(" ");
-  if (words.length < 6) return false;
-  const window = 6;
-  let hits = 0, total = 0;
-  for (let i = 0; i + window <= words.length; i += window) {
-    total++;
-    if (h.includes(words.slice(i, i + window).join(" "))) hits++;
+interface GroundingResult {
+  grounded: boolean;
+  chunkId: string | null;
+  page: number | null;
+  heading: string | null;
+}
+
+/**
+ * Verify a claimed quote against the source AND locate exactly where it came
+ * from.
+ *
+ * Doing both in one pass is the point: the same check that catches a
+ * hallucinated question also yields the page number that makes a real question
+ * auditable. A trainer reviewing an AI-generated assessment can click through
+ * to page 17 and read the sentence the answer rests on.
+ *
+ * Matching is lenient about whitespace and punctuation (models re-wrap text)
+ * but strict about content: we require either a full normalised match, or a
+ * clear majority of contiguous word-windows present in the same chunk.
+ */
+function locateQuote(quote: string, chunks: SourceChunk[], fullText: string): GroundingResult {
+  const miss: GroundingResult = { grounded: false, chunkId: null, page: null, heading: null };
+  if (!quote || quote.length < 12) return miss;
+
+  const q = normalise(quote);
+  if (!q) return miss;
+
+  const windowHitRatio = (haystack: string): number => {
+    if (haystack.includes(q)) return 1;
+    const words = q.split(" ");
+    if (words.length < 6) return 0;
+    const W = 6;
+    let hits = 0, total = 0;
+    for (let i = 0; i + W <= words.length; i += W) {
+      total++;
+      if (haystack.includes(words.slice(i, i + W).join(" "))) hits++;
+    }
+    return total > 0 ? hits / total : 0;
+  };
+
+  // Prefer the chunk with the strongest match, so the page we report is the
+  // page the quote actually sits on.
+  let best: { chunk: SourceChunk; score: number } | null = null;
+  for (const c of chunks) {
+    const score = windowHitRatio(normalise(c.content));
+    if (score >= 0.6 && (!best || score > best.score)) best = { chunk: c, score };
+    if (score === 1) break;
   }
-  return total > 0 && hits / total >= 0.6;
+
+  if (best) {
+    return {
+      grounded: true,
+      chunkId: best.chunk.id,
+      page: best.chunk.page_from ?? best.chunk.page_to ?? null,
+      heading: best.chunk.heading,
+    };
+  }
+
+  // No chunks indexed (raw_text path, or embedding step skipped) — fall back
+  // to checking the whole document so grounding still means something.
+  if (chunks.length === 0 && windowHitRatio(normalise(fullText)) >= 0.6) {
+    return { grounded: true, chunkId: null, page: null, heading: null };
+  }
+
+  return miss;
 }
 
 Deno.serve(async (req) => {
@@ -101,6 +154,7 @@ Deno.serve(async (req) => {
     let sourceText = typeof raw_text === "string" ? raw_text : "";
     let materialTitle = title_hint ?? "Practice Quiz";
     let materialRow: any = null;
+    let chunks: SourceChunk[] = [];
 
     if (material_id) {
       const { data, error } = await supabase
@@ -118,6 +172,15 @@ Deno.serve(async (req) => {
       materialRow = data;
       sourceText = data.extracted_text;
       materialTitle = data.title;
+
+      // Chunks carry page numbers — needed to turn a verified quote into a
+      // citation the learner (and a reviewing trainer) can click through to.
+      const { data: chunkRows } = await supabase
+        .from("material_chunks")
+        .select("id, chunk_index, content, page_from, page_to, heading")
+        .eq("material_id", material_id)
+        .order("chunk_index", { ascending: true });
+      chunks = (chunkRows ?? []) as SourceChunk[];
     }
 
     if (!sourceText || sourceText.trim().length < 100) {
@@ -220,6 +283,7 @@ ${workingText}
 
     const accepted: GeneratedQuestion[] = [];
     const rejected: { stem: string; reason: string }[] = [];
+    const grounding = new Map<string, GroundingResult>();
     let ungrounded = 0;
 
     for (const q of generated.questions) {
@@ -249,11 +313,14 @@ ${workingText}
       }
 
       // Grounding: flag rather than reject, so a good question with a sloppy
-      // quote still survives — but we surface the count honestly.
-      if (!quoteIsGrounded(q.source_quote ?? "", workingText)) {
+      // quote still survives — but we surface the count honestly, and we keep
+      // the resolved page so the citation is real.
+      const located = locateQuote(q.source_quote ?? "", chunks, workingText);
+      if (!located.grounded) {
         ungrounded++;
         q.source_quote = "";
       }
+      grounding.set(q.stem, located);
 
       accepted.push(q);
     }
@@ -309,6 +376,8 @@ ${workingText}
         competency_id: codeToId.get(q.competency_code) || null,
         distractor_rationales: rationales,
         source_quote: q.source_quote || null,
+        source_chunk_id: grounding.get(q.stem)?.chunkId ?? null,
+        source_page: grounding.get(q.stem)?.page ?? null,
         sort_order: i,
       };
     });
@@ -343,6 +412,7 @@ ${workingText}
         rejected: rejected.length,
         ungrounded_quotes: ungrounded,
         grounded_pct: Math.round(((accepted.length - ungrounded) / accepted.length) * 100),
+        page_cited: rows.filter((r) => r.source_page != null).length,
       },
       usage: {
         model: result.model,

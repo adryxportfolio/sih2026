@@ -20,13 +20,44 @@ Smart India Hackathon 2026 · Problem Statement **SIH26101**
 > capable of generating Quizzes and Multiple choice questions (MCQs) from uploaded
 > learning materials to strengthen capacity building in India's Official Statistical System.
 
-Three requirements, and each one has a shallow version and a real version. We built the real version.
+The statement bundles **two AI engines** and **two audiences**, and it is easy to
+build only half of it.
+
+```
+                        SIH26101
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+     SKILL INTELLIGENCE            ASSESSMENT ENGINE
+              │                           │
+   profile → prior → diagnostic    upload PDF/PPTX/DOCX/scan
+              │                           │
+        competency gaps            grounded MCQ generation
+              │                           │
+     iGOT + NSSTA TPAC             page-cited, misconception-tagged
+       recommendation                     │
+              │                           │
+              └─────────────┬─────────────┘
+                            │
+                    competency updated
+                            │
+              ┌─────────────┴─────────────┐
+        LEARNER dashboard        ADMINISTRATOR dashboard
+```
+
+That loop is closed: assessment changes the competency profile, which changes
+the recommendations, which changes what gets learned, which changes the next
+assessment.
 
 | Requirement | The shallow build | What Samiksha does |
 |---|---|---|
-| **Identify competency gaps** | Ask an LLM "what are they weak at?" | Deterministic gap arithmetic in SQL against the **FRAC** framework, weighted by role criticality and **damped by measurement confidence**. The AI interprets the numbers; it never invents them. |
-| **Recommend training via iGOT** | Screenshot a course list | A real **Sunbird ED** API adapter (the stack iGOT runs on), with a seeded simulator behind one env flag. Paths are sequenced by **spacing and interleaving**, not ranked by relevance. |
-| **Generate MCQs from uploads** | Prompt → parse → hope | **Grammar-constrained JSON schema** output, plus a **verbatim-quote grounding check** that mechanically catches hallucination, plus per-distractor misconception diagnosis. |
+| **Build a competency profile** from designation, role, experience, training | Ask the user and store it | Self-report is the least reliable evidence there is, so it sets a **low-confidence prior**, not an answer. Measured items raise confidence; the UI says so explicitly. |
+| **Four competency families** — statistical, technical, digital governance, behavioural | Model "topics" | **39 competencies across all four**, incl. Python, R, SQL, GIS, ML, cloud, big data, DPDP Act, cybersecurity, e-Sign, DPI — because an officer can be an excellent sampling statistician and still be unable to query the database their data sits in. |
+| **Identify competency gaps** | Ask an LLM "what are they weak at?" | Deterministic gap arithmetic in SQL against **FRAC**, weighted by role criticality and **damped by measurement confidence**. The AI interprets the numbers; it never invents them. |
+| **Recommend training via iGOT** | Screenshot a course list | A real **Karmayogi `/api/composite/v4/search`** adapter with `secureSettings` eligibility gates, plus **NSSTA TPAC** programmes. Sequenced by a **prerequisite graph**, not by gap size. |
+| **Generate MCQs from uploads** | Prompt → parse → hope | Grammar-constrained JSON schema, a **verbatim-quote grounding check**, and every accepted quote **resolved to a page or slide number**. |
+| **Learner dashboard** | A progress bar | Competency radar across all four families, AI diagnosis, recurring misconceptions, prerequisite-aware next steps. |
+| **Administrator dashboard** | Enrolment counts | **Workforce intelligence**: where the workforce is weak, how many officials it affects, which training to commission, and whether it is working. Aggregate-only by construction. |
 
 ---
 
@@ -49,6 +80,20 @@ source that justifies the answer. We then verify that span actually occurs in th
 (normalised, with fuzzy fallback for re-wrapped whitespace). Questions that fail are flagged
 and the grounding rate is reported. This is a mechanical check, not a prompt asking the model
 to behave.
+
+**Which wrong answer, not just that it was wrong.** Our generator labels every
+distractor with the specific misconception it encodes, so choosing option (a)
+tells us precisely which false model the learner holds. Those are persisted and
+aggregated: a belief demonstrated once is noise, three times is the thing worth
+teaching against. No score can tell you *"you are treating the final sampling
+stage as if it were the whole design"* — but the pattern of distractors can.
+
+**The biggest gap is not always the right next step.** Competencies form a
+prerequisite DAG. `get_zpd_competencies()` returns the *learnable frontier* —
+gaps whose prerequisites the officer already holds — ranked by priority scaled
+by readiness. Scheduling variance estimation for someone who cannot yet compute
+a design weight wastes their time and dents their confidence, so the planner is
+forbidden from doing it.
 
 **The spaced-repetition engine is the real one.** `src/lib/fsrs.ts` is a faithful port of
 FSRS-6, verified against the reference `py-fsrs` implementation — identical intervals,
@@ -182,13 +227,19 @@ docs/                      architecture and demo notes
 
 We would rather state these than have a judge find them.
 
-- **iGOT integration runs against a simulator.** iGOT Karmayogi is a closed government platform
-  with no public API or sandbox. The adapter implements the genuine Sunbird ED contract and
-  switches to live with one environment variable, but we cannot demonstrate a live connection
-  without a signed MoU. Any team claiming otherwise is claiming something they do not have.
-- **FRAC competency mappings are our reconstruction.** They are grounded in published MoSPI
-  Capacity Development material, NSSTA curricula, SQAF and NMDS 2.0, but the authoritative
-  FRAC dictionary is internal to DoPT.
+- **iGOT integration runs against a simulator, but against the real contract.** Karmayogi
+  Bharat publishes its platform under the `KB-iGOT` GitHub organisation, and
+  `deterministic-chatbot` documents the production endpoints — so the adapter targets the
+  actual `/api/composite/v4/search` shape, including the `secureSettings` moderated-course
+  gates and the documented trap that filtering on `primaryCategory` silently drops live
+  courses. What we cannot do is authenticate: credentials require an institutional
+  arrangement. One environment variable switches `IGOT_MODE` from `mock` to `live`.
+- **FRAC competency mappings are our reconstruction.** Grounded in published MoSPI Capacity
+  Development material, NSSTA curricula, SQAF and NMDS 2.0 — but the authoritative FRAC
+  dictionary is internal to DoPT.
+- **The diagnostic is not yet item-adaptive.** Questions carry calibrated difficulty and the
+  schema supports adaptive selection, but the current flow serves a fixed set. Adaptive item
+  selection is the next thing we would build.
 - **FSRS weights are the population defaults.** Per-learner optimisation needs several hundred
   reviews; `review_logs` captures everything required to run it once that data exists.
 - **YouTube playback is embed-only, by design.** Downloading or re-hosting streams would breach

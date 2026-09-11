@@ -31,7 +31,8 @@ export const DEMO_USER = {
 };
 
 export interface DemoCompetency {
-  code: string; name: string; comp_type: "behavioural" | "functional" | "domain";
+  code: string; name: string;
+  comp_type: "behavioural" | "functional" | "domain" | "technical" | "digital_governance";
   category: string; short: string;
   current: number; required: number; confidence: number;
   is_critical: boolean; evidence: number;
@@ -72,11 +73,40 @@ export const DEMO_COMPETENCIES: DemoCompetency[] = [
   { code: "BEH-RES-01", name: "Result Orientation", comp_type: "behavioural",
     category: "Personal Effectiveness", short: "Results",
     current: 2.6, required: 2, confidence: 0.68, is_critical: false, evidence: 12 },
+
+  // ── TECHNICAL — the family the Ministry is most worried about ──────────
+  { code: "TEC-PY-01", name: "Python for Data Analysis", comp_type: "technical",
+    category: "Programming", short: "Python",
+    current: 0.6, required: 1, confidence: 0.44, is_critical: false, evidence: 7,
+    rationale: "You can read a script but not write one unaided. Given how much of your imputation and tabulation work is still manual, this is the competency with the largest time payoff." },
+  { code: "TEC-SQL-01", name: "SQL and Database Querying", comp_type: "technical",
+    category: "Data Engineering", short: "SQL",
+    current: 1.1, required: 2, confidence: 0.62, is_critical: true, evidence: 11,
+    rationale: "Simple SELECT and WHERE are solid. Joins across more than two tables and NULL handling in aggregates are consistently wrong — which is where real extraction work lives." },
+  { code: "TEC-GIS-01", name: "Geospatial Analysis (GIS)", comp_type: "technical",
+    category: "Spatial Methods", short: "GIS",
+    current: 0.3, required: 1, confidence: 0.22, is_critical: false, evidence: 3,
+    rationale: "Barely assessed. Before prescribing a 40-hour GIS programme we should spend ten minutes measuring whether you need it." },
+  { code: "TEC-VIZ-01", name: "Dashboards and BI", comp_type: "technical",
+    category: "Dissemination Tech", short: "Dashb.",
+    current: 1.4, required: 1, confidence: 0.58, is_critical: false, evidence: 9 },
+
+  // ── DIGITAL GOVERNANCE ─────────────────────────────────────────────────
+  { code: "DIG-PRIV-01", name: "Data Privacy and the DPDP Act", comp_type: "digital_governance",
+    category: "Law & Compliance", short: "Privacy",
+    current: 1.3, required: 2, confidence: 0.66, is_critical: true, evidence: 13,
+    rationale: "You know respondent data is protected, but purpose limitation and data minimisation questions are going wrong. With the DPDP Act now in force this is a compliance exposure, not just a knowledge gap." },
+  { code: "DIG-CYBER-01", name: "Cybersecurity Awareness", comp_type: "digital_governance",
+    category: "Security", short: "Cyber",
+    current: 2.2, required: 2, confidence: 0.77, is_critical: true, evidence: 17 },
+  { code: "DIG-ESIGN-01", name: "Digital Signatures and e-Office", comp_type: "digital_governance",
+    category: "Digital Workflow", short: "e-Sign",
+    current: 1.8, required: 1, confidence: 0.71, is_critical: false, evidence: 10 },
 ];
 
 export const DEMO_DIAGNOSIS = {
   overall_summary:
-    "You are performing at or above your role's requirement on seven of ten mapped competencies, and your ethics and field-operations scores are genuinely strong — above what a Junior Statistical Officer post demands. The picture is not one of broad weakness; it is two specific technical gaps and one blind spot.\n\nSampling design is the gap that matters most. You handle the vocabulary confidently, which can mask the issue, but weight computation for multi-stage designs is going wrong often enough that it would affect published estimates. Imputation is the second. Metadata looks low, but with only four assessed items that is a measurement gap rather than a skill gap — we should test it before prescribing anything.",
+    "Your statistical craft is strong. Ethics, field operations and disclosure control all sit at or above what a Junior Statistical Officer post requires, and that is the half of the job most people find hardest to build.\n\nThe gap is not statistical — it is tooling and compliance. You are at 0.6/4 on Python and 1.1/4 on SQL, which means extraction and cleaning work that should take an afternoon is taking you days, and you are dependent on someone else for every non-trivial data pull. Alongside that, DPDP Act questions are going wrong often enough to be a compliance exposure now that the Act is in force.\n\nSampling remains the highest-consequence statistical gap: you handle the vocabulary confidently, which masks that multi-stage weight computation is going wrong. GIS looks low but has only three assessed items — that is a measurement gap, not a skill gap, and should be tested before anything is prescribed.",
   strengths: [
     { competency_code: "BEH-INT-01",
       note: "Consistently correct on confidentiality obligations and on scenarios involving pressure to alter a release. This is the competency that protects the institution, and you are above the bar for your grade." },
@@ -84,6 +114,14 @@ export const DEMO_DIAGNOSIS = {
       note: "Near-proficient in field operations with strong evidence behind it — 24 assessed items. Your non-response handling answers were notably good." },
   ],
   priority_gaps: [
+    { competency_code: "TEC-SQL-01",
+      rationale: "11 assessed items. Single-table queries are reliable; every item requiring a three-table join or correct NULL handling in an aggregate was missed. That is precisely the boundary between querying a table and actually extracting data.",
+      impact_on_role: "You remain dependent on a colleague for any non-trivial data pull, which adds days to every turnaround and puts a single point of failure between your Directorate and its own data.",
+      suggested_first_step: "Write one three-table join against a PLFS extract and verify the row count against a known published total." },
+    { competency_code: "DIG-PRIV-01",
+      rationale: "13 items assessed, with purpose limitation and data minimisation consistently wrong. You correctly identify that respondent data is protected, but not what that obligates you to do differently in a survey design.",
+      impact_on_role: "The DPDP Act is in force. Collecting fields you cannot justify, or retaining them past their purpose, is a statutory exposure for the Directorate — not merely bad practice.",
+      suggested_first_step: "Take one schedule you already use and mark every field you could not defend under purpose limitation." },
     { competency_code: "FUN-SAMP-01",
       rationale: "18 assessed items show a clear split: conceptual questions on stratification are answered correctly, while every item requiring computation of design weights for a two-stage sample was missed. You know what stratification is for; you cannot yet operationalise it.",
       impact_on_role: "Incorrect design weights produce biased state-level estimates that pass every plausibility check and are caught only at national aggregation, if at all. This is the single highest-consequence gap in your profile.",
@@ -383,3 +421,66 @@ export const DEMO_ZPD = [
 ];
 
 export const DEMO_ACCURACY_TREND = [0.52, 0.58, 0.55, 0.63, 0.67, 0.64, 0.72, 0.75, 0.71, 0.78, 0.81, 0.84];
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ADMINISTRATOR / NODAL OFFICER VIEW
+//  Aggregate workforce intelligence. No individual officer is identifiable
+//  here — the underlying view groups before it returns, by construction.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const DEMO_ORG_SUMMARY = {
+  organisation: "Directorate of Economics & Statistics, Maharashtra",
+  total_officials: 4821,
+  assessed: 3946,
+  avg_competency: 0.67,
+  avg_competency_delta: 0.04,      // vs last quarter
+  critical_gaps_open: 7,
+  training_hours_completed: 18420,
+  completion_rate: 0.63,
+};
+
+/** Workforce-wide competency gaps, worst first. */
+export const DEMO_ORG_GAPS = [
+  { code: "TEC-PY-01",    name: "Python for Data Analysis",        family: "technical",          avg: 0.28, required: 0.60, officials_below: 3120, trend: +0.06 },
+  { code: "TEC-GIS-01",   name: "Geospatial Analysis (GIS)",       family: "technical",          avg: 0.31, required: 0.50, officials_below: 2890, trend: +0.02 },
+  { code: "DIG-PRIV-01",  name: "Data Privacy & DPDP Act",         family: "digital_governance", avg: 0.34, required: 0.75, officials_below: 3402, trend: +0.11 },
+  { code: "TEC-ML-01",    name: "Machine Learning",                family: "technical",          avg: 0.38, required: 0.50, officials_below: 2410, trend: +0.09 },
+  { code: "TEC-SQL-01",   name: "SQL & Database Querying",         family: "technical",          avg: 0.44, required: 0.70, officials_below: 2650, trend: +0.05 },
+  { code: "DIG-CYBER-01", name: "Cybersecurity Awareness",         family: "digital_governance", avg: 0.52, required: 0.70, officials_below: 1980, trend: +0.14 },
+  { code: "FUN-QUAL-01",  name: "Statistical Quality (SQAF)",      family: "functional",         avg: 0.58, required: 0.75, officials_below: 1640, trend: +0.03 },
+  { code: "FUN-SAMP-01",  name: "Sampling Design & Estimation",    family: "functional",         avg: 0.71, required: 0.80, officials_below: 980,  trend: +0.01 },
+  { code: "BEH-COM-01",   name: "Communication",                   family: "behavioural",        avg: 0.74, required: 0.70, officials_below: 420,  trend: +0.02 },
+];
+
+/** Competency health by family — where the workforce stands overall. */
+export const DEMO_FAMILY_HEALTH = [
+  { family: "Statistical",        key: "functional",         avg: 0.78, officials: 4821 },
+  { family: "Domain",             key: "domain",             avg: 0.72, officials: 4821 },
+  { family: "Behavioural",        key: "behavioural",        avg: 0.76, officials: 4821 },
+  { family: "Technical",          key: "technical",          avg: 0.41, officials: 4821 },
+  { family: "Digital Governance", key: "digital_governance", avg: 0.46, officials: 4821 },
+];
+
+/** Which training the gap analysis implies the Directorate should commission. */
+export const DEMO_TRAINING_DEMAND = [
+  { programme: "Python for Statistical Analysis",   provider: "NSSTA (TPAC)", officials_needing: 3120, priority: "critical" },
+  { programme: "DPDP Act Compliance for Statistics",provider: "MoSPI",        officials_needing: 3402, priority: "critical" },
+  { programme: "GIS for Statistical Applications",  provider: "NSSTA (TPAC)", officials_needing: 2890, priority: "high" },
+  { programme: "SQL for Data Management",           provider: "iGOT",         officials_needing: 2650, priority: "high" },
+  { programme: "ML in Official Statistics",         provider: "NSSTA (TPAC)", officials_needing: 2410, priority: "medium" },
+  { programme: "Cybersecurity Essentials",          provider: "iGOT",         officials_needing: 1980, priority: "medium" },
+];
+
+/** Per-office rollup, so a nodal officer can see who needs attention. */
+export const DEMO_OFFICE_BREAKDOWN = [
+  { office: "Pune Divisional Office",     officials: 842, avg: 0.74, critical: 1, completion: 0.79 },
+  { office: "Mumbai HQ",                  officials: 1260, avg: 0.71, critical: 2, completion: 0.71 },
+  { office: "Nagpur Divisional Office",   officials: 690, avg: 0.66, critical: 3, completion: 0.58 },
+  { office: "Aurangabad Divisional Office",officials: 585, avg: 0.61, critical: 4, completion: 0.49 },
+  { office: "Nashik Divisional Office",   officials: 724, avg: 0.63, critical: 3, completion: 0.55 },
+  { office: "Field Units (aggregate)",    officials: 720, avg: 0.58, critical: 5, completion: 0.41 },
+];
+
+/** 8-quarter workforce competency trend. */
+export const DEMO_ORG_TREND = [0.54, 0.56, 0.58, 0.59, 0.62, 0.63, 0.65, 0.67];

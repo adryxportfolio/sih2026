@@ -82,6 +82,21 @@ export default function Profile() {
         <StatTile label="Service" value={`${profile?.years_of_service ?? 4}y`} icon="briefcase" tone="neutral" />
       </Row>
 
+      <Card level={1} onPress={() => router.push("/onboarding")} style={{ marginTop: space.base }}>
+        <Row justify="space-between">
+          <Row gap={space.md} style={{ flex: 1 }}>
+            <Ionicons name="refresh-outline" size={18} color={t.color.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Txt variant="bodyMd">Redo onboarding</Txt>
+              <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>
+                Update your role, posting or self-assessment
+              </Txt>
+            </View>
+          </Row>
+          <Ionicons name="chevron-forward" size={18} color={t.color.textSubtle} />
+        </Row>
+      </Card>
+
       <SectionHeader title="Learning settings" icon="options-outline" />
       <Card level={1}>
         <SettingRow icon="time-outline" label="Daily goal"
@@ -93,6 +108,32 @@ export default function Profile() {
         <Divider style={{ marginVertical: space.md }} />
         <SettingRow icon="language-outline" label="Language"
                     value={(profile?.preferred_language ?? "en") === "en" ? "English" : "हिन्दी"} />
+      </Card>
+
+      <SectionHeader title="Ministry view" icon="business-outline" />
+      <Card level={2} onPress={() => router.push("/admin")}>
+        <Row justify="space-between">
+          <Row gap={space.md} style={{ flex: 1 }}>
+            <View style={{
+              width: 42, height: 42, borderRadius: radius.md,
+              backgroundColor: t.color.bgInverse,
+              alignItems: "center", justifyContent: "center",
+            }}>
+              <Ionicons name="stats-chart" size={19} color={t.color.textInverse} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt variant="bodyMd">Workforce Intelligence</Txt>
+              <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>
+                Aggregate competency health for nodal officers
+              </Txt>
+            </View>
+          </Row>
+          <Ionicons name="chevron-forward" size={18} color={t.color.textSubtle} />
+        </Row>
+        <Txt variant="caption" tone="subtle" style={{ marginTop: space.md, lineHeight: 17 }}>
+          Shown here for the demo. In production this is gated to the
+          nodal_officer and admin roles by Row Level Security.
+        </Txt>
       </Card>
 
       <SectionHeader title="Integration" icon="git-network-outline" />

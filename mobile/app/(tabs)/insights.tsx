@@ -11,7 +11,7 @@ import {
 import { CompetencyRadar, StreakHeatmap, GapBar, ProgressRing } from "../../src/components/charts";
 import { DEMO_COMPETENCIES, DEMO_DIAGNOSIS, DEMO_MISCONCEPTIONS, DEMO_ZPD, demoHeatmap } from "../../src/lib/demo";
 
-type Filter = "all" | "functional" | "behavioural" | "domain";
+type Filter = "all" | "functional" | "technical" | "digital_governance" | "behavioural" | "domain";
 
 export default function Insights() {
   const t = useTheme();
@@ -27,12 +27,22 @@ export default function Insights() {
     [filter],
   );
 
-  const radarAxes = useMemo(
-    () => DEMO_COMPETENCIES.slice(0, 8).map((c) => ({
-      label: c.name, short: c.short, current: c.current, required: c.required,
-    })),
-    [],
-  );
+  // One representative competency per family, plus the biggest gaps — so the
+  // radar shows the shape of the whole profile rather than one corner of it.
+  const radarAxes = useMemo(() => {
+    const picked = [
+      "FUN-SAMP-01", "FUN-CLEAN-01", "DOM-NSS-01",
+      "TEC-PY-01", "TEC-SQL-01",
+      "DIG-PRIV-01", "DIG-CYBER-01",
+      "BEH-INT-01",
+    ];
+    return picked
+      .map((code) => DEMO_COMPETENCIES.find((c) => c.code === code))
+      .filter(Boolean)
+      .map((c) => ({
+        label: c!.name, short: c!.short, current: c!.current, required: c!.required,
+      }));
+  }, []);
 
   const met = DEMO_COMPETENCIES.filter((c) => c.current >= c.required).length;
   const critical = DEMO_COMPETENCIES.filter((c) => c.is_critical && c.current < c.required).length;
@@ -285,9 +295,15 @@ export default function Insights() {
       <Animated.View entering={FadeInDown.delay(200).duration(360)}>
         <SectionHeader title="All competencies" icon="grid-outline" />
         <Row gap={space.sm} wrap style={{ marginBottom: space.md }}>
-          {(["all", "functional", "behavioural", "domain"] as Filter[]).map((f) => (
-            <Chip key={f} label={f === "all" ? "All" : f[0].toUpperCase() + f.slice(1)}
-                  selected={filter === f} onPress={() => setFilter(f)} />
+          {([
+            ["all", "All"],
+            ["functional", "Statistical"],
+            ["technical", "Technical"],
+            ["digital_governance", "Digital Gov"],
+            ["behavioural", "Behavioural"],
+            ["domain", "Domain"],
+          ] as [Filter, string][]).map(([f, label]) => (
+            <Chip key={f} label={label} selected={filter === f} onPress={() => setFilter(f)} />
           ))}
         </Row>
 
