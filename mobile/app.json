@@ -1,25 +1,43 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Samiksha",
+    "slug": "samiksha",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "scheme": "samiksha",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#9333EA"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "in.gov.mospi.samiksha"
     },
     "android": {
+      "package": "in.gov.mospi.samiksha",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#9333EA",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
     },
     "plugins": [
       "expo-router",
@@ -28,7 +46,18 @@
       "expo-image",
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      [
+        "expo-document-picker",
+        { "iCloudContainerEnvironment": "Production" }
+      ],
+      [
+        "expo-image-picker",
+        { "photosPermission": "Samiksha needs photo access so you can turn printed notes and handouts into quizzes." }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

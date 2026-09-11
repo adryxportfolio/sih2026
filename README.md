@@ -1,0 +1,201 @@
+<div align="center">
+
+# समीक्षा · Samiksha
+
+**AI-enabled capacity building for India's Official Statistical System**
+
+Smart India Hackathon 2026 · Problem Statement **SIH26101**
+
+[![Build APK](https://github.com/adryxportfolio/sih2026/actions/workflows/build-apk.yml/badge.svg)](https://github.com/adryxportfolio/sih2026/actions/workflows/build-apk.yml)
+[![Download APK](https://img.shields.io/badge/Download-APK-9333EA?logo=android&logoColor=white)](https://github.com/adryxportfolio/sih2026/releases/latest)
+
+</div>
+
+---
+
+## The problem
+
+> Develop an AI enabled learning platform that identifies competency gaps, recommends
+> personalized training through integration with the iGOT Karmayogi ecosystem, and
+> capable of generating Quizzes and Multiple choice questions (MCQs) from uploaded
+> learning materials to strengthen capacity building in India's Official Statistical System.
+
+Three requirements, and each one has a shallow version and a real version. We built the real version.
+
+| Requirement | The shallow build | What Samiksha does |
+|---|---|---|
+| **Identify competency gaps** | Ask an LLM "what are they weak at?" | Deterministic gap arithmetic in SQL against the **FRAC** framework, weighted by role criticality and **damped by measurement confidence**. The AI interprets the numbers; it never invents them. |
+| **Recommend training via iGOT** | Screenshot a course list | A real **Sunbird ED** API adapter (the stack iGOT runs on), with a seeded simulator behind one env flag. Paths are sequenced by **spacing and interleaving**, not ranked by relevance. |
+| **Generate MCQs from uploads** | Prompt → parse → hope | **Grammar-constrained JSON schema** output, plus a **verbatim-quote grounding check** that mechanically catches hallucination, plus per-distractor misconception diagnosis. |
+
+---
+
+## Why this is defensible
+
+**Gap analysis is arithmetic, not vibes.** A capacity-building decision inside a government
+ministry has to withstand "why was I assigned this training?" `recompute_competency_gaps()`
+is a SQL function: required proficiency minus evidence-weighted measured proficiency, times
+importance, times a criticality multiplier, damped by how much evidence exists. Two officers
+with identical records get identical results, every time. The LLM's job is to *explain* that
+output in language an officer will act on — not to produce it.
+
+**"No data" is not the same as "weak."** Most competency systems conflate them. Ours tracks a
+separate confidence score per competency, and when it's low the system says *assess this*
+rather than *train this*. Prescribing a course for an unmeasured competency wastes an
+officer's time and the department's budget.
+
+**Every generated question is traceable.** The model must return a verbatim span from the
+source that justifies the answer. We then verify that span actually occurs in the document
+(normalised, with fuzzy fallback for re-wrapped whitespace). Questions that fail are flagged
+and the grounding rate is reported. This is a mechanical check, not a prompt asking the model
+to behave.
+
+**The spaced-repetition engine is the real one.** `src/lib/fsrs.ts` is a faithful port of
+FSRS-6, verified against the reference `py-fsrs` implementation — identical intervals,
+stability and difficulty across every test sequence:
+
+| Sequence | py-fsrs reference | Samiksha |
+|---|---|---|
+| all Good | 10m→2d→11d→46d→163d→498d→1348d→3299d | ✅ identical |
+| all Easy | 8d→66d→397d→1875d→7265d | ✅ identical |
+| Good×3→Again→Good | 10m→2d→11d→10m→2d→5d | ✅ identical |
+
+---
+
+## The learning science
+
+Requirement 3 asked for "proven scientific ways to learn a topic in a short period."
+These are the interventions with the strongest replication records, and where each one lives:
+
+| Method | What the evidence says | Where it lives |
+|---|---|---|
+| **Spaced repetition** | Distributed practice beats massed practice for long-term retention | `src/lib/fsrs.ts` — FSRS-6 schedules each card for when recall is predicted to decay to your target |
+| **Retrieval practice** | Recalling strengthens memory far more than re-reading | Every input step in a path is followed by a retrieval step, enforced in the planner prompt |
+| **Interleaving** | Mixing topics beats blocking them — harder in the moment, better transfer | `get_due_cards()` rotates competencies round-robin rather than draining one at a time |
+| **Elaborative interrogation** | Asking "why is this true" at encoding improves recall | Every flashcard carries an `elaboration` field; the generator is instructed to explain mechanism, not restate |
+| **Metacognitive calibration** | Knowing what you don't know predicts self-directed learning success | Confidence is captured **before** the answer is revealed; quizzes report calibration error and name overconfidence explicitly |
+| **Desirable difficulties** | Conditions that slow acquisition improve retention | Interleaving and expanding intervals are applied deliberately, and the UI explains why it feels harder |
+| **Bloom's taxonomy spread** | Recall-only assessment can't distinguish competence levels | MCQ generation targets a deliberate Apply/Analyse/Evaluate distribution, shown to the learner after each quiz |
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  ANDROID APP  ·  React Native 0.86 · Expo 57 · TypeScript    │
+│  Ships ONLY the Supabase anon key. RLS is the real boundary. │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ JWT
+┌───────────────────────────▼──────────────────────────────────┐
+│  SUPABASE EDGE FUNCTIONS (Deno)  ·  all secrets live here    │
+│  generate-quiz · process-material · diagnose-competency      │
+│  generate-path · curate-videos · tutor · generate-flashcards │
+└──────┬──────────────────────┬──────────────────┬─────────────┘
+       │                      │                  │
+┌──────▼────────┐   ┌─────────▼────────┐  ┌──────▼───────────┐
+│  PostgreSQL   │   │   OpenRouter     │  │  iGOT Karmayogi  │
+│  35 tables    │   │  DeepSeek v4     │  │  Sunbird ED      │
+│  57 policies  │   │  Kimi k2.5/k2.6  │  │  adapter         │
+│  pgvector RAG │   └──────────────────┘  └──────────────────┘
+└───────────────┘
+```
+
+### Model routing
+
+Routing is a decision, not a default. Each tier earns its place:
+
+| Tier | Model | Context | Used for | Why |
+|---|---|---|---|---|
+| `fast` | `deepseek/deepseek-v4-flash` | 1M | MCQ generation, flashcards, summarisation | $0.09/M in. A 1M window means an entire textbook fits in one call, so no chunk-stitching artefacts. |
+| `balanced` | `moonshotai/kimi-k2.5` | 262K | Vision OCR for scanned PDFs | DeepSeek v4 Flash is text-only. A large share of Indian government training material is scanned — a text-only pipeline would silently return empty documents. |
+| `reasoning` | `moonshotai/kimi-k2.6` | 262K | Gap diagnosis, path planning, video vetting | Judgement calls where being wrong costs an officer weeks. |
+
+All three support **strict JSON-schema structured output**, so generation shape is guaranteed
+by grammar-constrained decoding rather than by parsing prose. Every call is retried, falls
+back across models, and is cost-audited into `ai_generations`.
+
+---
+
+## Security
+
+The APK ships with the Supabase **anon key** and nothing else. An APK is trivially
+decompilable, so anything compiled into it is public by definition.
+
+- `scripts/sync-env.mjs` **refuses to run** if a server secret ever carries an `EXPO_PUBLIC_` prefix
+- Service role key, OpenRouter key and YouTube key exist only as Supabase Edge Function secrets
+- All 35 tables are deny-by-default with explicit RLS grants
+- `auth.uid()` is wrapped in `(select …)` throughout so Postgres evaluates it once per statement, not once per row
+- Nodal-officer dashboards read an aggregate view that cannot expose individual learners
+
+---
+
+## Running it
+
+### Install the app
+
+Download the latest APK from **[Releases](https://github.com/adryxportfolio/sih2026/releases/latest)**,
+allow "install unknown apps" for your browser, and open it. Tap **Explore the demo** — the full
+journey runs offline with no account.
+
+### Run from source
+
+```bash
+git clone https://github.com/adryxportfolio/sih2026.git
+cd sih2026
+cp .env.example .env        # fill in your keys
+npm run env:sync            # propagates CLIENT-SAFE vars only
+cd mobile && npm install && npm start
+```
+
+### Set up the backend
+
+1. **Database** — open the Supabase SQL Editor and run `supabase/schema.sql` (all migrations, in order)
+2. **Storage** — create a bucket named `materials` (private)
+3. **Secrets** — `supabase secrets set --env-file .env`
+4. **Functions** — `supabase functions deploy`
+
+The app runs in demo mode without any of this.
+
+---
+
+## Repository layout
+
+```
+mobile/                    Expo / React Native app
+  app/                     expo-router screens
+  src/theme/               design tokens (white · purple · black)
+  src/components/          UI kit + SVG data visualisation
+  src/lib/fsrs.ts          FSRS-6, verified against py-fsrs
+  src/lib/demo.ts          offline demo dataset
+supabase/
+  migrations/              8 ordered migrations
+  schema.sql               all migrations bundled, paste-ready
+  functions/               7 Edge Functions + shared modules
+.github/workflows/         zero-cost APK build → GitHub Release
+docs/                      architecture and demo notes
+```
+
+---
+
+## Honest limitations
+
+We would rather state these than have a judge find them.
+
+- **iGOT integration runs against a simulator.** iGOT Karmayogi is a closed government platform
+  with no public API or sandbox. The adapter implements the genuine Sunbird ED contract and
+  switches to live with one environment variable, but we cannot demonstrate a live connection
+  without a signed MoU. Any team claiming otherwise is claiming something they do not have.
+- **FRAC competency mappings are our reconstruction.** They are grounded in published MoSPI
+  Capacity Development material, NSSTA curricula, SQAF and NMDS 2.0, but the authoritative
+  FRAC dictionary is internal to DoPT.
+- **FSRS weights are the population defaults.** Per-learner optimisation needs several hundred
+  reviews; `review_logs` captures everything required to run it once that data exists.
+- **YouTube playback is embed-only, by design.** Downloading or re-hosting streams would breach
+  YouTube's Terms of Service.
+
+---
+
+<div align="center">
+<sub>Built for Smart India Hackathon 2026 · Problem Statement SIH26101</sub>
+</div>

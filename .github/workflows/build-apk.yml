@@ -1,0 +1,168 @@
+name: Build Android APK
+
+# Produces a signed, installable APK and attaches it to a GitHub Release, so
+# judges can download and run it straight from the repo's Releases page.
+#
+# Cost: nothing. GitHub Actions is free for public repositories, and the whole
+# toolchain (JDK, Android SDK, Gradle) is preinstalled on the runner image.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag for the release (e.g. v1.0.0)"
+        required: false
+        default: "v1.0.0-dev"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Assemble release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Write client-safe env
+        working-directory: mobile
+        # Only EXPO_PUBLIC_* values reach the app. Server secrets (service role,
+        # OpenRouter, YouTube) live in Supabase Edge Function secrets and are
+        # deliberately absent here — they must never enter an APK.
+        run: |
+          cat > .env <<EOF
+          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EOF
+          echo "Wrote .env with $(wc -l < .env) client-safe vars"
+
+      - name: Typecheck
+        working-directory: mobile
+        run: npx tsc --noEmit
+
+      - name: Prebuild native Android project
+        working-directory: mobile
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Generate release keystore
+        working-directory: mobile/android/app
+        # A generated keystore is fine for hackathon distribution. For Play Store
+        # publishing you would commit an encrypted keystore and load it from
+        # secrets instead, so updates keep the same signing identity.
+        run: |
+          keytool -genkeypair -v \
+            -keystore release.keystore \
+            -alias samiksha \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD || 'samiksha2026' }}" \
+            -keypass "${{ secrets.KEYSTORE_PASSWORD || 'samiksha2026' }}" \
+            -dname "CN=Samiksha, OU=SIH2026, O=MoSPI Capacity Building, L=New Delhi, S=Delhi, C=IN"
+
+      - name: Configure release signing
+        working-directory: mobile/android
+        run: |
+          cat >> gradle.properties <<EOF
+          SAMIKSHA_UPLOAD_STORE_FILE=release.keystore
+          SAMIKSHA_UPLOAD_KEY_ALIAS=samiksha
+          SAMIKSHA_UPLOAD_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD || 'samiksha2026' }}
+          SAMIKSHA_UPLOAD_KEY_PASSWORD=${{ secrets.KEYSTORE_PASSWORD || 'samiksha2026' }}
+          EOF
+          # Point the release buildType at our generated keystore
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("app/build.gradle")
+          s = p.read_text()
+          if "SAMIKSHA_UPLOAD_STORE_FILE" not in s:
+              s = s.replace(
+                  "signingConfigs {",
+                  """signingConfigs {
+        release {
+            storeFile file(SAMIKSHA_UPLOAD_STORE_FILE)
+            storePassword SAMIKSHA_UPLOAD_STORE_PASSWORD
+            keyAlias SAMIKSHA_UPLOAD_KEY_ALIAS
+            keyPassword SAMIKSHA_UPLOAD_KEY_PASSWORD
+        }""", 1)
+              s = re.sub(
+                  r"(buildTypes\s*\{[\s\S]*?release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug",
+                  r"\1signingConfig signingConfigs.release",
+                  s, count=1)
+              p.write_text(s)
+              print("✅ release signing wired into build.gradle")
+          PY
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Rename artifact
+        id: artifact
+        run: |
+          SRC=mobile/android/app/build/outputs/apk/release/app-release.apk
+          TAG="${{ github.event.inputs.release_tag || github.ref_name }}"
+          OUT="Samiksha-${TAG}.apk"
+          cp "$SRC" "$OUT"
+          echo "path=$OUT" >> $GITHUB_OUTPUT
+          echo "tag=$TAG"  >> $GITHUB_OUTPUT
+          echo "size=$(du -h "$OUT" | cut -f1)" >> $GITHUB_OUTPUT
+          echo "Built $OUT ($(du -h "$OUT" | cut -f1))"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: samiksha-apk
+          path: ${{ steps.artifact.outputs.path }}
+          retention-days: 90
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.artifact.outputs.tag }}
+          name: Samiksha ${{ steps.artifact.outputs.tag }}
+          files: ${{ steps.artifact.outputs.path }}
+          generate_release_notes: true
+          body: |
+            ## Samiksha — AI Capacity Building for India's Official Statistical System
+
+            **Smart India Hackathon 2026 · Problem Statement SIH26101**
+
+            ### Install
+            1. Download `${{ steps.artifact.outputs.path }}` below (${{ steps.artifact.outputs.size }})
+            2. On your Android phone, allow **Install unknown apps** for your browser or file manager
+            3. Open the downloaded file and install
+            4. Tap **Explore the demo** to see the full journey — no account or network needed
+
+            Minimum Android 7.0 (API 24).
+
+            ### What's inside
+            - FRAC-aligned competency gap analysis (deterministic scoring + AI interpretation)
+            - MCQ generation from uploaded material, with verbatim-quote grounding checks
+            - FSRS-6 spaced repetition, verified against the reference implementation
+            - iGOT Karmayogi adapter built on the Sunbird ED contract
+            - AI-vetted YouTube tutoring via the official embedded player

@@ -1,29 +1,43 @@
 /**
  * iGOT Karmayogi integration adapter.
  *
- * REALITY CHECK — read before judging this file
+ * WHAT IS AND ISN'T POSSIBLE HERE
  * ─────────────────────────────────────────────────────────────────────────
- * iGOT Karmayogi is a closed government platform for serving civil servants.
- * There is no public developer API and no sandbox. Any project claiming a
- * live iGOT integration outside a signed MoU is claiming something it cannot
- * have.
+ * iGOT Karmayogi is a closed platform for serving civil servants — you cannot
+ * obtain API credentials without an institutional arrangement.
  *
- * So we do the honest engineering thing: implement against the REAL contract
- * and make the data source a configuration flag.
+ * But the API *contracts* are public. Karmayogi Bharat publishes its platform
+ * source under the `KB-iGOT` GitHub organisation (100+ repositories), and
+ * `KB-iGOT/deterministic-chatbot` documents the exact request and response
+ * shapes of the production endpoints, against the UAT host
+ * `portal.uat.karmayogibharat.net`.
  *
- * iGOT is built on **Sunbird ED** (open source, the same stack as DIKSHA), so
- * its content and enrolment APIs follow documented Sunbird shapes:
- *   POST {base}/api/content/v1/search          — content discovery
- *   GET  {base}/api/course/v1/hierarchy/{id}   — course structure
- *   GET  {base}/api/course/v1/user/enrollment/list/{userId}
- *   POST {base}/api/course/v1/content/state/update
+ * So this adapter is written against the REAL endpoints, not a generic guess
+ * at "some Sunbird-shaped API":
  *
- * `IGOT_MODE=mock`  → seeded simulator built from real NSSTA/MoSPI curricula.
- * `IGOT_MODE=live`  → the same code paths hit a real Sunbird endpoint once
- *                     credentials exist. Nothing else in the app changes.
+ *   POST /api/composite/v4/search          content search (courses/programs/events)
+ *   GET  /api/accessSettings/read/{id}     per-course access eligibility
+ *   GET  /api/user/private/v1/read/{id}    user profile (rootOrgId, profileStatus)
+ *   POST /api/private/user/v1/search       MDO admin lookup
  *
- * Every response is normalised to `IgotCourse`, so the rest of the system
- * never knows or cares which mode it ran in.
+ * Two details we take directly from the platform's own documentation, both of
+ * which a from-scratch integration would get wrong:
+ *
+ *  1. NO `primaryCategory` FILTER. Karmayogi's taxonomy includes course-like
+ *     categories beyond "Course"/"Program" — notably "Curated Program".
+ *     Filtering on primaryCategory silently drops live courses.
+ *
+ *  2. `secureSettings` MARKS MODERATED COURSES. When present, enrolment is
+ *     gated on the learner's `rootOrgId`/`ministryOrStateId` appearing in
+ *     `secureSettings.organisation`, and — if `isVerifiedKarmayogi === "Yes"` —
+ *     on `profileDetails.profileStatus === "VERIFIED"`. We implement that
+ *     eligibility check so recommendations never surface a course the officer
+ *     cannot actually open.
+ *
+ * `IGOT_MODE=mock` → seeded catalogue built from published NSSTA/MoSPI curricula.
+ * `IGOT_MODE=live` → the same code paths hit the real endpoints.
+ *
+ * Both modes normalise to `IgotCourse`, so nothing downstream knows or cares.
  */
 
 export interface IgotCourse {
@@ -236,44 +250,93 @@ const MOCK_CATALOGUE: IgotCourse[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  LIVE — Sunbird ED content search
+//  LIVE — Karmayogi composite search (real contract)
 // ─────────────────────────────────────────────────────────────────────────────
+const DEFAULT_IGOT_BASE = "https://portal.uat.karmayogibharat.net";
+
 const DIFFICULTY_MAP: Record<string, IgotCourse["difficulty"]> = {
   beginner: "beginner", foundation: "beginner",
   intermediate: "practitioner", practitioner: "practitioner",
   advanced: "proficient", proficient: "proficient", expert: "expert",
 };
 
-function normaliseSunbird(item: Record<string, any>): IgotCourse {
+/** `secureSettings` as published in the Karmayogi integration docs. */
+export interface SecureSettings {
+  isVerifiedKarmayogi?: "Yes" | "No";
+  organisation?: string[];
+  version?: number;
+}
+
+export interface LearnerEligibilityContext {
+  rootOrgId?: string | null;
+  ministryOrStateId?: string | null;
+  profileStatus?: string | null;
+}
+
+/**
+ * Gate 1 of the moderated-course check, mirroring Karmayogi's
+ * `check_secure_settings_eligibility` transform.
+ *
+ * Returns true when the course is open, or when the learner satisfies every
+ * applicable restriction (AND logic).
+ */
+export function isEligibleForCourse(
+  secureSettings: SecureSettings | null | undefined,
+  ctx: LearnerEligibilityContext,
+): boolean {
+  if (!secureSettings || typeof secureSettings !== "object") return true; // not moderated
+
+  const orgs = secureSettings.organisation ?? [];
+  if (orgs.length > 0) {
+    const mine = [ctx.rootOrgId, ctx.ministryOrStateId].filter(Boolean) as string[];
+    if (!mine.some((id) => orgs.includes(id))) return false;
+  }
+
+  if (secureSettings.isVerifiedKarmayogi === "Yes") {
+    if ((ctx.profileStatus ?? "").toUpperCase() !== "VERIFIED") return false;
+  }
+
+  return true;
+}
+
+function igotBase(): string {
+  return Deno.env.get("IGOT_BASE_URL") || DEFAULT_IGOT_BASE;
+}
+
+function normaliseKarmayogi(item: Record<string, any>): IgotCourse {
+  const base = igotBase();
   return {
-    externalId: String(item.identifier ?? item.do_id ?? ""),
-    title: String(item.name ?? item.title ?? "Untitled course"),
+    externalId: String(item.identifier ?? ""),
+    title: String(item.name ?? "Untitled course"),
     description: String(item.description ?? ""),
-    provider: String(item.source ?? item.organisation?.[0] ?? item.creator ?? "iGOT Karmayogi"),
+    provider: String(
+      item.source ?? item.creatorContacts?.[0]?.name ?? item.orgDetails?.orgName ?? "iGOT Karmayogi",
+    ),
     thumbnailUrl: item.posterImage ?? item.appIcon ?? null,
-    contentUrl: item.identifier
-      ? `${Deno.env.get("IGOT_BASE_URL") ?? "https://igotkarmayogi.gov.in"}/course/${item.identifier}`
-      : null,
+    contentUrl: item.identifier ? `${base}/app/toc/${item.identifier}/overview` : null,
+    // Karmayogi reports duration in seconds
     durationMinutes: item.duration ? Math.round(Number(item.duration) / 60) : 0,
     language: Array.isArray(item.language) ? (item.language[0] ?? "en") : (item.language ?? "en"),
     difficulty: DIFFICULTY_MAP[String(item.difficultyLevel ?? "").toLowerCase()] ?? "practitioner",
-    rating: item.averageRating ? Number(item.averageRating) : null,
+    rating: item.averageRating != null ? Number(item.averageRating) : null,
     enrolledCount: Number(item.enrolmentCount ?? 0),
-    // Sunbird exposes FRAC competencies under `competencies_v5` / `competency`
-    competencyCodes: (item.competencies_v5 ?? item.competency ?? [])
-      .map((c: any) => c?.competencyAreaCode ?? c?.code ?? c?.name)
+    // FRAC competencies ride under competencies_v5 / competencies_v6
+    competencyCodes: (item.competencies_v6 ?? item.competencies_v5 ?? item.competency ?? [])
+      .map((c: any) => c?.competencyAreaCode ?? c?.code ?? c?.competencyArea ?? c?.name)
       .filter(Boolean)
       .map(String),
     raw: item,
   };
 }
 
-async function liveSearch(query: string, limit: number): Promise<IgotCourse[]> {
-  const base = Deno.env.get("IGOT_BASE_URL");
+async function karmayogiSearch(
+  query: string,
+  limit: number,
+  opts: { statuses?: string[] } = {},
+): Promise<{ count: number; courses: IgotCourse[]; rawContent: Record<string, any>[] }> {
   const key = Deno.env.get("IGOT_API_KEY");
-  if (!base) throw new Error("IGOT_MODE=live but IGOT_BASE_URL is not set");
 
-  const res = await fetch(`${base}/api/content/v1/search`, {
+  const res = await fetch(`${igotBase()}/api/composite/v4/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -281,18 +344,40 @@ async function liveSearch(query: string, limit: number): Promise<IgotCourse[]> {
     },
     body: JSON.stringify({
       request: {
-        filters: { primaryCategory: ["Course", "Program"], status: ["Live"] },
         query,
+        // Deliberately NO primaryCategory filter — see the header note.
+        filters: { status: opts.statuses ?? ["Live"] },
+        sort_by: { createdOn: "desc" },
         limit,
-        sort_by: { lastPublishedOn: "desc" },
       },
     }),
   });
-  if (!res.ok) throw new Error(`iGOT search failed: ${res.status} ${await res.text()}`);
+
+  if (!res.ok) {
+    throw new Error(`iGOT composite search failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
+  }
 
   const json = await res.json();
-  const content = json?.result?.content ?? [];
-  return content.map(normaliseSunbird);
+  const content: Record<string, any>[] = json?.result?.content ?? [];
+  return {
+    count: Number(json?.result?.count ?? content.length),
+    courses: content.map(normaliseKarmayogi),
+    rawContent: content,
+  };
+}
+
+/**
+ * Per-course access settings. Returns null when no config exists, which
+ * Karmayogi treats as "public".
+ */
+export async function fetchAccessSettings(courseId: string): Promise<Record<string, any> | null> {
+  const key = Deno.env.get("IGOT_API_KEY");
+  const res = await fetch(`${igotBase()}/api/accessSettings/read/${encodeURIComponent(courseId)}`, {
+    headers: key ? { "Authorization": `Bearer ${key}` } : {},
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) return null;
+  return await res.json().catch(() => null);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -306,10 +391,12 @@ export async function findCoursesForCompetencies(
 ): Promise<IgotCourse[]> {
   if (igotMode() === "live") {
     try {
-      return await liveSearch(competencyCodes.join(" OR "), limit);
+      const { courses } = await karmayogiSearch(competencyCodes.join(" "), limit);
+      if (courses.length) return courses;
+      console.warn("[igot] live search returned nothing; using catalogue");
     } catch (e) {
+      // Degrade rather than fail the learner's request.
       console.error("[igot] live search failed, falling back to catalogue", e);
-      // Degrade rather than fail the learner's request
     }
   }
 
@@ -328,7 +415,10 @@ export async function findCoursesForCompetencies(
 
 export async function listAllCourses(): Promise<IgotCourse[]> {
   if (igotMode() === "live") {
-    try { return await liveSearch("*", 100); } catch (e) {
+    try {
+      const { courses } = await karmayogiSearch("", 100);
+      if (courses.length) return courses;
+    } catch (e) {
       console.error("[igot] live list failed, using catalogue", e);
     }
   }
