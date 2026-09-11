@@ -343,4 +343,43 @@ export function demoHeatmap(): Record<string, number> {
   return out;
 }
 
+/**
+ * Recurring misconceptions — the same false belief demonstrated more than once.
+ * Derived from WHICH distractor was chosen, not from the score.
+ */
+export const DEMO_MISCONCEPTIONS = [
+  {
+    competency_code: "FUN-SAMP-01",
+    competency_name: "Sampling Design and Estimation",
+    misconception: "Ignores the PPS village stage entirely — treats the final sampling stage as if it were the whole design.",
+    occurrences: 4,
+    last_seen: "2 days ago",
+  },
+  {
+    competency_code: "FUN-CLEAN-01",
+    competency_name: "Data Cleaning, Editing and Imputation",
+    misconception: "Believes preserving the mean means the imputation was harmless — does not consider what happens to the variance.",
+    occurrences: 3,
+    last_seen: "4 days ago",
+  },
+  {
+    competency_code: "FUN-SAMP-01",
+    competency_name: "Sampling Design and Estimation",
+    misconception: "Confuses a raw expansion factor with a design weight under unequal selection probability.",
+    occurrences: 2,
+    last_seen: "1 week ago",
+  },
+];
+
+/** Prerequisite-aware learnable frontier. */
+export const DEMO_ZPD = [
+  { code: "FUN-SAMP-01", name: "Sampling Design and Estimation", readiness: 1.0, blocked_by: [] as string[] },
+  { code: "FUN-CLEAN-01", name: "Data Cleaning, Editing and Imputation", readiness: 1.0, blocked_by: [] as string[] },
+  { code: "FUN-META-01", name: "Metadata and Standards (NMDS 2.0)", readiness: 1.0, blocked_by: [] as string[] },
+  { code: "FUN-ANAL-01", name: "Statistical Analysis and Inference", readiness: 0.38,
+    blocked_by: ["Sampling Design and Estimation"] },
+  { code: "FUN-QUAL-01", name: "Statistical Quality Assurance (SQAF)", readiness: 0.43,
+    blocked_by: ["Data Cleaning, Editing and Imputation"] },
+];
+
 export const DEMO_ACCURACY_TREND = [0.52, 0.58, 0.55, 0.63, 0.67, 0.64, 0.72, 0.75, 0.71, 0.78, 0.81, 0.84];

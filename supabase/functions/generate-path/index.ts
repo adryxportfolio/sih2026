@@ -66,7 +66,13 @@ Deno.serve(async (req) => {
     const { data: jobRole } = await admin
       .from("job_roles").select("code, name, grade_level").eq("id", profile.job_role_id).single();
 
-    // ── 1. Top gaps ─────────────────────────────────────────────────────────
+    // ── 1. Learnable frontier (ZPD) ─────────────────────────────────────────
+    // Ordering by prerequisite-aware readiness rather than raw gap size, so we
+    // never schedule a topic the officer cannot yet start.
+    const { data: zpd } = await supabase.rpc("get_zpd_competencies", {
+      p_user_id: userId, p_limit: 10,
+    });
+
     let gapQ = supabase
       .from("competency_gaps")
       .select(`gap_size, priority_score, is_critical, required_level, current_level,
@@ -148,10 +154,20 @@ Deno.serve(async (req) => {
     }
 
     // ── 3. Plan ─────────────────────────────────────────────────────────────
+    const zpdByCode = new Map(
+      (zpd ?? []).map((z: any) => [z.code, z]),
+    );
+
     const gapBrief = working.map((g: any) =>
-      `- ${g.competencies.code} | ${g.competencies.name}
+      {
+        const z = zpdByCode.get(g.competencies.code);
+        const readiness = z ? Math.round((z.readiness ?? 1) * 100) : 100;
+        const blocked = (z?.blocked_by ?? []) as string[];
+        return `- ${g.competencies.code} | ${g.competencies.name}
     required ${g.required_level}, currently ${g.current_level}, gap ${Number(g.gap_size).toFixed(2)}${g.is_critical ? " [CRITICAL]" : ""}
-    ${g.competencies.description ?? ""}`).join("\n");
+    readiness ${readiness}%${blocked.length ? ` — BLOCKED until: ${blocked.join(", ")}` : " — prerequisites met"}
+    ${g.competencies.description ?? ""}`;
+      }).join("\n");
 
     const courseBrief = igotCourses.length
       ? igotCourses.map((c) =>
@@ -180,7 +196,7 @@ You are a learning scientist, not a content lister. Sequence the plan using thes
 1. SPACING OVER MASSING. Distribute work on a competency across the plan rather than finishing it in one block. Revisiting material after a delay produces markedly better long-term retention than the same total time spent consecutively.
 2. INTERLEAVE RELATED COMPETENCIES. Alternate between related competencies instead of completing one fully before starting the next. It feels harder and produces better transfer — a desirable difficulty.
 3. TESTING EFFECT. Follow every substantial input step (course/video/reading) with a retrieval step (quiz/flashcards/practice). Retrieving knowledge strengthens it far more than re-reading. Never place two input steps back to back without retrieval between them.
-4. BUILD PREREQUISITES FIRST. Do not schedule a 'proficient'-level topic before its foundational competency is addressed.
+4. RESPECT THE PREREQUISITE GRAPH. Each gap below carries a readiness score and, where relevant, what blocks it. NEVER schedule a blocked competency before its blocker. A blocked topic scheduled early produces failure, not learning.
 5. START WITH A WIN. The first item should be achievable in one sitting — early completion drives follow-through.
 6. END WITH CONSOLIDATION. Close with a reflection or mixed cumulative practice step.
 

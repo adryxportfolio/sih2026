@@ -79,6 +79,21 @@ Deno.serve(async (req) => {
       .select("score, confidence, correct_count, total_count, competencies!inner ( code, name )")
       .eq("user_id", userId);
 
+    // Recurring misconceptions — the same false belief demonstrated more than
+    // once. Far more actionable than "scored 60%".
+    const { data: misconceptions } = await supabase
+      .from("v_recurring_misconceptions")
+      .select("competency_code, competency_name, misconception, occurrences, last_seen")
+      .eq("user_id", userId)
+      .order("occurrences", { ascending: false })
+      .limit(8);
+
+    // Learnable frontier: gaps whose prerequisites the officer already holds.
+    const { data: zpd } = await supabase.rpc("get_zpd_competencies", {
+      p_user_id: userId,
+      p_limit: 8,
+    });
+
     const { data: attempts } = await supabase
       .from("quiz_attempts")
       .select("score, correct_count, total_count, calibration_error, created_at, quizzes ( title )")
@@ -116,6 +131,21 @@ Deno.serve(async (req) => {
         ).join("\n")
       : "  (no quizzes completed yet)";
 
+    const misconceptionLines = (misconceptions ?? []).length
+      ? (misconceptions ?? []).map((m: any) =>
+          `- [${m.competency_code ?? "—"}] demonstrated ${m.occurrences}×: "${m.misconception}"`,
+        ).join("\n")
+      : "  (none detected yet — either no wrong answers, or no repeated pattern)";
+
+    const zpdLines = (zpd ?? []).length
+      ? (zpd ?? []).map((z: any) =>
+          `- ${z.code} | ${z.name} · readiness ${Math.round((z.readiness ?? 0) * 100)}%` +
+          ((z.blocked_by ?? []).length
+            ? ` · BLOCKED until: ${(z.blocked_by as string[]).join(", ")}`
+            : " · prerequisites met, ready to start now"),
+        ).join("\n")
+      : "  (no prerequisite data available)";
+
     const avgCalibration = (attempts ?? [])
       .map((a: any) => a.calibration_error)
       .filter((c: any) => c != null);
@@ -147,6 +177,8 @@ HOW TO ADVISE
 · For impact_on_role, be concrete about statistical work: biased estimates, misapplied weights, a release that fails SQAF review, a disclosure breach. Not vague "reduced effectiveness".
 · suggested_first_step must be doable this week and specific.
 · Name at most 5 priority gaps. A list of fifteen priorities is a list of none.
+· RESPECT THE PREREQUISITE GRAPH. A competency marked BLOCKED is not the right next step no matter how large the gap — recommend its blocker instead, and say why. Teaching someone variance estimation before they can compute a design weight wastes their time and dents their confidence.
+· USE THE MISCONCEPTIONS. If a specific false belief keeps recurring, name it explicitly and correct it. "You are treating the final sampling stage as the whole design" is worth more than "revise sampling".
 · Use only competency codes that appear in the data below.
 · Write in language: ${profile.preferred_language ?? "en"}.`,
         },
@@ -162,6 +194,12 @@ Daily study capacity: ${profile.daily_goal_minutes ?? 20} minutes
 
 COMPETENCY GAP ANALYSIS (deterministic, sorted by priority)
 ${gapLines}
+
+RECURRING MISCONCEPTIONS (from which distractors were chosen, not just scores)
+${misconceptionLines}
+
+LEARNABLE FRONTIER (prerequisite-aware — what is actually startable now)
+${zpdLines}
 
 RECENT ASSESSMENT HISTORY
 ${attemptLines}
@@ -217,6 +255,8 @@ Produce the diagnosis.`,
       role: jobRole,
       gap_count: gaps.length,
       critical_gap_count: (gaps ?? []).filter((g: any) => g.is_critical && g.gap_size > 0).length,
+      recurring_misconceptions: misconceptions ?? [],
+      learnable_now: (zpd ?? []).filter((z: any) => (z.readiness ?? 0) >= 0.99),
       usage: { model: result.model, cost_usd: result.costUsd, latency_ms: result.latencyMs },
     });
   } catch (err) {

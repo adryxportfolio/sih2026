@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, Pressable, useWindowDimensions } from "react-native";
+import { View, Pressable, useWindowDimensions, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,7 @@ import {
   LevelBadge, Divider, ProgressBar,
 } from "../../src/components/ui";
 import { CompetencyRadar, StreakHeatmap, GapBar, ProgressRing } from "../../src/components/charts";
-import { DEMO_COMPETENCIES, DEMO_DIAGNOSIS, demoHeatmap } from "../../src/lib/demo";
+import { DEMO_COMPETENCIES, DEMO_DIAGNOSIS, DEMO_MISCONCEPTIONS, DEMO_ZPD, demoHeatmap } from "../../src/lib/demo";
 
 type Filter = "all" | "functional" | "behavioural" | "domain";
 
@@ -184,6 +184,100 @@ export default function Insights() {
               />
             </Animated.View>
           ) : null}
+        </Card>
+      </Animated.View>
+
+      {/* ── Misconceptions ─────────────────────────────────────────────── */}
+      <Animated.View entering={FadeInDown.delay(170).duration(360)}>
+        <SectionHeader title="What you believe instead" icon="git-compare-outline" />
+        <Card level={1}>
+          <Txt variant="small" tone="muted" style={{ marginBottom: space.base, lineHeight: 21 }}>
+            A wrong answer says you missed something. <Txt variant="bodyMd">Which</Txt> wrong
+            answer says what you believe instead. These are the false models you picked more
+            than once — the highest-yield things to correct.
+          </Txt>
+
+          <View style={{ gap: space.md }}>
+            {DEMO_MISCONCEPTIONS.map((m, i) => (
+              <View key={i} style={{
+                padding: space.md,
+                borderRadius: radius.md,
+                backgroundColor: t.color.bgSunken,
+                borderLeftWidth: 3,
+                borderLeftColor: m.occurrences >= 4 ? t.color.text : t.color.borderStrong,
+              }}>
+                <Row justify="space-between" style={{ marginBottom: 6 }}>
+                  <Txt variant="overline" tone="muted">{m.competency_code}</Txt>
+                  <Row gap={4}>
+                    <Ionicons name="repeat" size={11} color={t.color.textSubtle} />
+                    <Txt variant="overline" tone="subtle">{m.occurrences}× · {m.last_seen.toUpperCase()}</Txt>
+                  </Row>
+                </Row>
+                <Txt variant="small" style={{ lineHeight: 21 }}>{m.misconception}</Txt>
+              </View>
+            ))}
+          </View>
+
+          <Button
+            label="Target these with the tutor"
+            variant="secondary"
+            icon="chatbubbles"
+            size="sm"
+            full
+            style={{ marginTop: space.base }}
+            onPress={() => router.push("/tutor")}
+          />
+        </Card>
+      </Animated.View>
+
+      {/* ── Learnable frontier (ZPD) ───────────────────────────────────── */}
+      <Animated.View entering={FadeInDown.delay(185).duration(360)}>
+        <SectionHeader title="What you can learn next" icon="git-network-outline" />
+        <Card level={1}>
+          <Txt variant="small" tone="muted" style={{ marginBottom: space.base, lineHeight: 21 }}>
+            The biggest gap is not always the right next step. These are ranked by whether
+            you already hold the prerequisites — teaching variance estimation before design
+            weights wastes your time.
+          </Txt>
+
+          <View style={{ gap: space.sm }}>
+            {DEMO_ZPD.map((z) => {
+              const ready = z.readiness >= 0.99;
+              return (
+                <View key={z.code} style={{
+                  paddingVertical: space.sm,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: t.color.border,
+                }}>
+                  <Row justify="space-between" align="flex-start">
+                    <View style={{ flex: 1, marginRight: space.sm }}>
+                      <Txt variant="bodyMd" numberOfLines={1}>{z.name}</Txt>
+                      {ready ? (
+                        <Row gap={4} style={{ marginTop: 3 }}>
+                          <Ionicons name="checkmark-circle" size={11} color={t.color.success} />
+                          <Txt variant="overline" tone="success">READY TO START NOW</Txt>
+                        </Row>
+                      ) : (
+                        <Row gap={4} style={{ marginTop: 3 }} align="flex-start">
+                          <Ionicons name="lock-closed" size={10} color={t.color.textSubtle}
+                                    style={{ marginTop: 1 }} />
+                          <Txt variant="overline" tone="subtle" style={{ flex: 1 }}>
+                            NEEDS FIRST: {z.blocked_by.join(", ").toUpperCase()}
+                          </Txt>
+                        </Row>
+                      )}
+                    </View>
+                    <View style={{ width: 46, alignItems: "flex-end" }}>
+                      <Txt variant="bodyMd" tone={ready ? "default" : "subtle"}>
+                        {Math.round(z.readiness * 100)}%
+                      </Txt>
+                      <Txt variant="overline" tone="subtle">READY</Txt>
+                    </View>
+                  </Row>
+                </View>
+              );
+            })}
+          </View>
         </Card>
       </Animated.View>
 

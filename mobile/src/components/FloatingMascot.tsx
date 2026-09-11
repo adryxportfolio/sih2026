@@ -76,8 +76,11 @@ export function FloatingMascot({
         -1,
         false,
       );
-      const id = setTimeout(() => setShowTip(true), 1200);
-      return () => clearTimeout(id);
+      // Show, then get out of the way. A tip that sits on top of content
+      // stops being help and starts being an obstruction.
+      const show = setTimeout(() => setShowTip(true), 1200);
+      const hide = setTimeout(() => setShowTip(false), 9000);
+      return () => { clearTimeout(show); clearTimeout(hide); };
     }
     ring.value = 0;
     setShowTip(false);
@@ -88,7 +91,7 @@ export function FloatingMascot({
   }));
 
   const ringStyle = useAnimatedStyle(() => ({
-    opacity: (1 - ring.value) * 0.5,
+    opacity: (1 - ring.value) * 0.35,
     transform: [{ scale: 1 + ring.value * 0.45 }],
   }));
 
