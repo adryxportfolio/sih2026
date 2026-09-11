@@ -7,19 +7,23 @@
  * Extraction strategy
  * ───────────────────
  *  PDF     `unpdf` (pdf.js core, serverless-safe) pulls the text layer.
- *          If the text layer is thin — i.e. the PDF is a SCAN — we fall back
- *          to vision OCR via Kimi k2.5. This matters: a large share of Indian
- *          government training material is scanned, and a text-only pipeline
- *          would silently produce an empty document.
- *  Images  straight to vision OCR.
+ *  PPTX    slide XML + speaker notes, slide order preserved.
+ *  DOCX    document XML, split on explicit page breaks.
  *  Text    used as-is.
+ *  Images  require a vision-capable model.
+ *
+ * VISION: the active model (deepseek-v4-flash) is TEXT-ONLY. A scanned PDF has
+ * no text layer, so rather than silently indexing an empty document — which
+ * would then generate confident nonsense — we detect the thin text layer and
+ * fail with an explicit, actionable message. `modelSupportsVision()` gates the
+ * OCR path so it lights up automatically if a vision model is ever configured.
  *
  * Embeddings use Supabase Edge Runtime's built-in `gte-small` (384-dim).
  * It runs in-process, costs nothing, and needs no third-party embedding API.
  */
 import { handlePreflight, jsonResponse, errorResponse } from "../_shared/cors.ts";
 import { adminClient, userClient, requireUser } from "../_shared/supabase.ts";
-import { chat, logGeneration } from "../_shared/openrouter.ts";
+import { chat, logGeneration, modelSupportsVision } from "../_shared/openrouter.ts";
 import { materialAnalysisSchema } from "../_shared/schemas.ts";
 import { extractText, getDocumentProxy } from "npm:unpdf@0.12.1";
 import { extractPptx, extractDocx, isPptx, isDocx } from "../_shared/officedocs.ts";
@@ -113,8 +117,7 @@ function chunkPages(pages: string[], target = 1200, overlap = 150): Chunk[] {
 async function ocrViaVision(
   dataUrl: string, userId: string, pageHint: string,
 ): Promise<{ text: string; model: string; cost: number }> {
-  const r = await chat<unknown>({
-    tier: "balanced",           // Kimi k2.5 — vision-capable
+  const r = await chat<unknown>({           // Kimi k2.5 — vision-capable
     task: "ocr_material",
     userId,
     temperature: 0.1,
@@ -200,9 +203,24 @@ Deno.serve(async (req) => {
       }
 
       // Heuristic: a real text PDF yields well over 100 chars/page. Far less
-      // than that means we're looking at scanned images.
+      // than that means we're looking at page images, not text.
       const charsPerPage = pageCount ? text.replace(/\s/g, "").length / pageCount : text.length;
       if (charsPerPage < 100) {
+        if (!modelSupportsVision()) {
+          await supabase.from("materials").update({
+            status: "failed",
+            error_message:
+              "This looks like a scanned PDF — it has images of text rather than selectable text. " +
+              "The current model reads text only. Please upload a text-based PDF, a PPTX/DOCX, " +
+              "or run OCR on the file first.",
+          }).eq("id", material_id);
+          return errorResponse(
+            "Scanned document detected. The active model is text-only, so this file cannot be read.",
+            422,
+            { scanned: true, chars_per_page: Math.round(charsPerPage), needs_vision_model: true },
+          );
+        }
+
         console.log(`[process-material] thin text layer (${Math.round(charsPerPage)} chars/page) → vision OCR`);
         const b64 = btoa(String.fromCharCode(...bytes.slice(0, 8_000_000)));
         const ocr = await ocrViaVision(
@@ -211,8 +229,6 @@ Deno.serve(async (req) => {
         );
         if (ocr.text.trim().length > text.trim().length) {
           text = ocr.text;
-          // OCR returns one blob; we lose exact page boundaries but keep a
-          // best-effort split on form-feed / explicit page markers.
           pages = text.split(/\f|\n(?=\s*(?:Page|PAGE)\s+\d+\s*\n)/).filter((p) => p.trim());
           if (pages.length < 2) pages = [text];
           usedOcr = true;
@@ -232,6 +248,16 @@ Deno.serve(async (req) => {
       text = doc.text;
       pageCount = doc.pages.length;
     } else if (mime.startsWith("image/")) {
+      if (!modelSupportsVision()) {
+        await supabase.from("materials").update({
+          status: "failed",
+          error_message: "Image uploads need a vision-capable model. Please upload a PDF, PPTX, DOCX or text file.",
+        }).eq("id", material_id);
+        return errorResponse(
+          "Image uploads require a vision-capable model. The active model is text-only.",
+          422, { needs_vision_model: true },
+        );
+      }
       const b64 = btoa(String.fromCharCode(...bytes));
       const ocr = await ocrViaVision(`data:${mime};base64,${b64}`, userId, "Single page image.");
       text = ocr.text;
@@ -321,7 +347,6 @@ Deno.serve(async (req) => {
       title: string; summary: string; key_topics: string[]; language: string;
       difficulty: string; competencies: { code: string; relevance: number }[];
     }>({
-      tier: "fast",
       task: "analyse_material",
       userId,
       schema: materialAnalysisSchema,

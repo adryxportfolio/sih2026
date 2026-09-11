@@ -154,8 +154,7 @@ Deno.serve(async (req) => {
       : "No confidence data captured yet.";
 
     // ── 4. Interpret ────────────────────────────────────────────────────────
-    const result = await chat<Diagnosis>({
-      tier: "reasoning",          // judgement call → strongest model
+    const result = await chat<Diagnosis>({          // judgement call → strongest model
       task: "diagnose_gaps",
       userId,
       schema: diagnosisSchema,

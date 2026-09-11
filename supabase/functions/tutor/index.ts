@@ -101,7 +101,6 @@ Deno.serve(async (req) => {
       follow_up_questions: string[];
       confidence: string;
     }>({
-      tier: contextBlock ? "fast" : "reasoning",
       task: "tutor_reply",
       userId,
       schema: tutorSchema,

@@ -63,7 +63,6 @@ Deno.serve(async (req) => {
 
     // ── Generate ────────────────────────────────────────────────────────────
     const result = await chat<{ cards: any[] }>({
-      tier: "fast",
       task: "generate_flashcards",
       userId,
       schema: flashcardSchema,
@@ -84,7 +83,7 @@ Card quality determines whether spaced repetition works at all. Follow these rul
 5. ELABORATION CARRIES THE 'WHY'. Explain the mechanism or the consequence. Asking and answering "why is this true" at encoding measurably improves later recall — that is what this field is for.
 6. CONCRETE INDIAN CONTEXT where the material supports it: NSS rounds, PLFS, HCES, ASI, IIP, CPI, GVA, NIC/NCO, SQAF, NMDS 2.0.
 7. source_quote must be VERBATIM from the material, or an empty string. Never paraphrase into it.
-8. Vary Bloom levels — not every card should be `remember`.
+8. Vary Bloom levels — not every card should be \`remember\`.
 
 Tag each card with the best-fitting FRAC competency code, or "" if none applies:
 ${compList}

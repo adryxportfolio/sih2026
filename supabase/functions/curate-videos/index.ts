@@ -148,7 +148,6 @@ Deno.serve(async (req) => {
     ).join("\n\n");
 
     const result = await chat<{ selections: any[] }>({
-      tier: "reasoning",
       task: "curate_videos",
       userId,
       schema: videoCurationSchema,

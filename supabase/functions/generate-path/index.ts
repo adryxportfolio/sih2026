@@ -179,7 +179,6 @@ Deno.serve(async (req) => {
     const totalBudget = dailyMinutes * 5 * Number(weeks); // 5 study days/week
 
     const result = await chat<PathPlan>({
-      tier: "reasoning",
       task: "generate_path",
       userId,
       schema: learningPathSchema,
@@ -207,7 +206,7 @@ RULES
 · Use only competency codes from the gap list.
 · Keep the total within roughly ${totalBudget} minutes (${dailyMinutes} min/day, 5 days/week, ${weeks} weeks).
 · At most ${max_items} items.
-· `why_this` must reference this officer's actual gap or the sequencing logic — never generic filler.
+· \`why_this\` must reference this officer's actual gap or the sequencing logic — never generic filler.
 · Write in language: ${profile.preferred_language ?? "en"}.`,
         },
         {

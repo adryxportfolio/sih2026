@@ -224,11 +224,11 @@ Deno.serve(async (req) => {
 You write examination-grade multiple-choice questions. Your questions are used to measure real competency, so they must be defensible.
 
 NON-NEGOTIABLE RULES
-1. GROUND EVERY QUESTION. `source_quote` must be copied VERBATIM — character for character — from the supplied material, and must be the span that justifies the correct answer. Never paraphrase it. If a question is not supported by the material, do not write it.
+1. GROUND EVERY QUESTION. \`source_quote\` must be copied VERBATIM — character for character — from the supplied material, and must be the span that justifies the correct answer. Never paraphrase it. If a question is not supported by the material, do not write it.
 2. SELF-CONTAINED STEMS. Never write "according to the passage", "in the document above", or "as mentioned". The learner sees only the question.
 3. PLAUSIBLE DISTRACTORS. Every wrong option must represent a real misconception a statistical officer could hold — a confused definition, a transposed formula, a wrong unit, an off-by-one in a classification. Never filler, never obviously absurd, never "All of the above".
 4. NO GIVEAWAYS. Keep options similar in length and grammatical form. The correct answer must not be the longest or most detailed.
-5. EXPLAIN, DON'T ASSERT. `explanation` should teach the underlying principle so a learner who got it wrong now understands why.
+5. EXPLAIN, DON'T ASSERT. \`explanation\` should teach the underlying principle so a learner who got it wrong now understands why.
 6. DIAGNOSE THE DISTRACTORS. For each wrong option, name the specific misconception it captures. This is what turns a score into a diagnosis.
 7. USE INDIAN STATISTICAL CONTEXT where the material allows: NSS rounds, PLFS, HCES, ASI, IIP, CPI, GVA, NIC/NCO classifications, SQAF, NMDS 2.0.
 
@@ -249,8 +249,7 @@ ${workingText}
 
     // ── 4. Generate ─────────────────────────────────────────────────────────
     const result = await chat<GeneratedQuiz>({
-      // Bulk generation over a long document: the 1M-context cheap model.
-      tier: "fast",
+      
       task: "generate_mcq",
       userId,
       schema: quizSchema,

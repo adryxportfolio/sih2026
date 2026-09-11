@@ -1,16 +1,11 @@
 -- =============================================================================
 --  SAMIKSHA · COMPLETE DATABASE SCHEMA (all migrations, in order)
---  Generated 2026-09-11 11:33
---
---  HOW TO APPLY:
---    Supabase Dashboard -> SQL Editor -> New query -> paste this whole file
---    -> Run.  Safe to run once on a fresh project.
+--  Generated 2026-09-11 19:44
+--  Apply: Supabase Dashboard -> SQL Editor -> paste -> Run
 -- =============================================================================
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100000_extensions_and_identity.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0001 · Extensions, Enums, Identity
@@ -227,9 +222,7 @@ as $$
 $$;
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100100_frac_competency.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0002 · FRAC — Framework of Roles, Activities and Competencies
@@ -512,9 +505,7 @@ end;
 $$;
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100200_content.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0003 · Learning Content
@@ -749,9 +740,7 @@ create trigger video_progress_set_updated_at
   for each row execute function public.tg_set_updated_at();
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100300_assessment_quiz.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0004 · Assessment, Quizzes & MCQ Generation
@@ -1083,9 +1072,7 @@ end;
 $$;
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100400_learning_engine.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0005 · Learning Science Engine
@@ -1334,9 +1321,7 @@ create trigger path_items_recalc_progress
   for each row execute function public.tg_recalc_path_progress();
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100500_analytics_ai.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0006 · Analytics, Gamification, AI Audit, Tutor
@@ -1582,9 +1567,7 @@ comment on view public.v_org_competency_health is
   'Aggregate competency health per organisation for nodal officers. Exposes no individual learner rows.';
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100600_rls.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0007 · Row Level Security
@@ -1924,9 +1907,7 @@ create policy "notifications self" on public.notifications
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100700_seed_frac.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0008 · FRAC Seed — India's Official Statistical System
@@ -2191,9 +2172,7 @@ insert into public.achievements (id, title, description, icon, tier, xp_reward) 
 on conflict (id) do nothing;
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100800_zpd_and_misconceptions.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0009 · Prerequisite Graph (ZPD) + Misconception Tracking
@@ -2558,9 +2537,7 @@ begin
 end $$;
 
 
--- ######################################################################
 -- ##  SOURCE: migrations/20260911100900_technical_digital_competencies.sql
--- ######################################################################
 
 -- =============================================================================
 --  SAMIKSHA · 0010 · Technical & Digital Governance Competencies
@@ -2755,4 +2732,70 @@ begin
     on conflict (competency_id, prerequisite_id) do nothing;
   end loop;
 end $$;
+
+
+-- ##  SOURCE: migrations/20260911101000_harden_function_grants.sql
+
+-- =============================================================================
+--  SAMIKSHA · 0011 · Lock down SECURITY DEFINER function grants
+--
+--  Postgres grants EXECUTE to PUBLIC on every new function by default, and
+--  `anon`/`authenticated` inherit that. PostgREST then exposes each one as a
+--  callable RPC endpoint at /rest/v1/rpc/<name>. Two groups should never have
+--  been reachable that way:
+--
+--    TRIGGER FUNCTIONS   invoked by the trigger machinery as the table owner.
+--                        A client calling them directly is meaningless at best.
+--
+--    RLS HELPERS         exist so policies can read across tables without
+--                        recursing. Exposed, `same_org_as(<uuid>)` becomes an
+--                        oracle for probing organisation membership.
+--
+--  Revoking from anon/authenticated alone is a no-op — the grant lives on
+--  PUBLIC and is inherited. It has to come off PUBLIC.
+--
+--  Nothing breaks: triggers run as the table owner, and RLS policy evaluation
+--  calls these internally without consulting the caller's EXECUTE privilege.
+-- =============================================================================
+
+revoke execute on function public.handle_new_user()          from public, anon, authenticated;
+revoke execute on function public.tg_recalc_path_progress()  from public, anon, authenticated;
+revoke execute on function public.tg_update_question_stats() from public, anon, authenticated;
+revoke execute on function public.tg_set_updated_at()        from public, anon, authenticated;
+revoke execute on function public.tg_sync_competency_level() from public, anon, authenticated;
+
+revoke execute on function public.can_read_material(uuid)    from public, anon, authenticated;
+revoke execute on function public.can_read_quiz(uuid)        from public, anon, authenticated;
+revoke execute on function public.same_org_as(uuid)          from public, anon, authenticated;
+revoke execute on function public.current_app_role()         from public, anon, authenticated;
+revoke execute on function public.current_org_id()           from public, anon, authenticated;
+revoke execute on function public.is_staff()                 from public, anon, authenticated;
+revoke execute on function public.apply_response_to_competency(uuid,uuid,real,boolean)
+  from public, anon, authenticated;
+
+-- ── Learner-facing RPCs: signed-in only ──────────────────────────────────────
+revoke execute on function public.submit_quiz_attempt(uuid)       from public, anon;
+revoke execute on function public.recompute_competency_gaps(uuid) from public, anon;
+revoke execute on function public.get_zpd_competencies(uuid,int)  from public, anon;
+revoke execute on function public.get_due_cards(int,uuid)         from public, anon;
+revoke execute on function public.record_misconceptions(uuid)     from public, anon;
+revoke execute on function public.record_study_progress(int,int,int,int,int,int,int)
+  from public, anon;
+revoke execute on function public.match_material_chunks(uuid, extensions.vector, int, real)
+  from public, anon;
+
+grant execute on function public.submit_quiz_attempt(uuid)       to authenticated;
+grant execute on function public.recompute_competency_gaps(uuid) to authenticated;
+grant execute on function public.get_zpd_competencies(uuid,int)  to authenticated;
+grant execute on function public.get_due_cards(int,uuid)         to authenticated;
+grant execute on function public.record_study_progress(int,int,int,int,int,int,int)
+  to authenticated;
+grant execute on function public.match_material_chunks(uuid, extensions.vector, int, real)
+  to authenticated;
+
+-- ── Pure lookup helpers: fine for signed-in users, not for anonymous ─────────
+revoke execute on function public.proficiency_ordinal(public.proficiency_level) from public, anon;
+revoke execute on function public.ordinal_to_proficiency(int)                   from public, anon;
+grant  execute on function public.proficiency_ordinal(public.proficiency_level) to authenticated;
+grant  execute on function public.ordinal_to_proficiency(int)                   to authenticated;
 

@@ -1,50 +1,39 @@
 /**
  * OpenRouter gateway.
  *
- * Everything the app asks of an LLM goes through here so that:
+ * ONE MODEL, DELIBERATELY: deepseek/deepseek-v4-flash.
+ *
+ * Every LLM call in the product goes through here, so that:
  *   · the API key never leaves the server,
- *   · model choice is a routing decision, not scattered string literals,
- *   · every call is retried, fallen back, cost-accounted and audited.
+ *   · there is exactly one place that knows which model we use,
+ *   · every call is retried, cost-accounted and audited.
  *
- * Tier routing rationale
+ * Why a single model is the right call rather than a limitation
  * ─────────────────────────────────────────────────────────────────────────
- *  fast       deepseek/deepseek-v4-flash   1M ctx, ~$0.09/M in. Text only.
- *             Bulk work: MCQ generation, summarisation, flashcard writing.
- *             The 1M window means a whole textbook fits in one call.
+ *  · 1M token context — an entire training handbook fits in one call, so
+ *    there is no chunk-stitching and no cross-chunk inconsistency in the
+ *    questions we generate.
+ *  · ~$0.09 / M input — generating a 20-question quiz from a 150-page PDF
+ *    costs well under a cent, which is what makes per-learner, on-demand
+ *    generation viable for a workforce of thousands rather than a demo.
+ *  · Strict JSON-schema structured output — decoding is grammar-constrained,
+ *    so the response shape is guaranteed rather than parsed and prayed over.
  *
- *  balanced   moonshotai/kimi-k2.5         262K ctx, VISION. ~$0.45/M in.
- *             Anything with pixels: scanned PDFs, diagrams, handwriting.
- *
- *  reasoning  moonshotai/kimi-k2.6         262K ctx, VISION, strongest.
- *             Judgement calls: competency diagnosis, learning-path planning,
- *             video quality vetting.
+ * Known constraint, handled explicitly: this model is TEXT-ONLY. Scanned
+ * documents with no text layer cannot be read, and `process-material` returns
+ * a clear error rather than silently indexing an empty document.
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-export type ModelTier = "fast" | "balanced" | "reasoning";
-
-function modelFor(tier: ModelTier): string {
-  switch (tier) {
-    case "fast":
-      return Deno.env.get("MODEL_FAST") ?? "deepseek/deepseek-v4-flash";
-    case "balanced":
-      return Deno.env.get("MODEL_BALANCED") ?? "moonshotai/kimi-k2.5";
-    case "reasoning":
-      return Deno.env.get("MODEL_REASONING") ?? "moonshotai/kimi-k2.6";
-  }
+/** The one model. Overridable by env for ops, not by callers. */
+export function activeModel(): string {
+  return Deno.env.get("MODEL_PRIMARY") ?? "deepseek/deepseek-v4-flash";
 }
 
-/** If the primary model fails hard, try this next. Vision-capable tiers stay vision-capable. */
-function fallbackFor(tier: ModelTier): string | null {
-  switch (tier) {
-    case "fast":
-      return Deno.env.get("MODEL_BALANCED") ?? "moonshotai/kimi-k2.5";
-    case "balanced":
-      return Deno.env.get("MODEL_REASONING") ?? "moonshotai/kimi-k2.6";
-    case "reasoning":
-      return Deno.env.get("MODEL_BALANCED") ?? "moonshotai/kimi-k2.5";
-  }
+/** True when the active model can read images. Used to gate OCR paths. */
+export function modelSupportsVision(): boolean {
+  return /vision/i.test(activeModel());
 }
 
 export type ImagePart = { type: "image_url"; image_url: { url: string } };
@@ -57,8 +46,6 @@ export interface ChatMessage {
 }
 
 export interface ChatOptions {
-  tier?: ModelTier;
-  model?: string;               // explicit override, skips tier routing
   messages: ChatMessage[];
   /** JSON Schema for strict structured output. Strongly preferred over prose parsing. */
   schema?: { name: string; schema: Record<string, unknown> };
@@ -174,64 +161,60 @@ export function extractJson<T>(content: string): T | null {
 }
 
 export async function chat<T = unknown>(opts: ChatOptions): Promise<ChatResult<T>> {
-  const tier = opts.tier ?? "fast";
-  const primary = opts.model ?? modelFor(tier);
-  const fallback = opts.model ? null : fallbackFor(tier);
+  const model = activeModel();
   const maxRetries = opts.retries ?? 2;
   const timeoutMs = opts.timeoutMs ?? 90_000;
-
-  const models = fallback ? [primary, fallback] : [primary];
   let lastError: unknown = null;
 
-  for (const model of models) {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const { raw, latencyMs } = await callOnce(model, opts, controller.signal);
-        clearTimeout(timer);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const { raw, latencyMs } = await callOnce(model, opts, controller.signal);
+      clearTimeout(timer);
 
-        const content: string = raw?.choices?.[0]?.message?.content ?? "";
-        const usage = raw?.usage ?? {};
-        const result: ChatResult<T> = {
-          content,
-          parsed: opts.schema ? extractJson<T>(content) : null,
-          model: raw?.model ?? model,
-          promptTokens: usage.prompt_tokens ?? 0,
-          completionTokens: usage.completion_tokens ?? 0,
-          costUsd: typeof usage.cost === "number" ? usage.cost : 0,
-          latencyMs,
-        };
+      const msg = raw?.choices?.[0]?.message ?? {};
+      // Reasoning models put the visible answer in `content` and their scratch
+      // work in `reasoning_content`. Prefer content; fall back so a
+      // reasoning-only response is never silently treated as empty.
+      const content: string = msg.content ?? msg.reasoning_content ?? "";
+      const usage = raw?.usage ?? {};
 
-        // A schema was requested but nothing parseable came back — treat as
-        // a failed generation so retry/fallback gets a chance.
-        if (opts.schema && result.parsed === null) {
-          throw new UpstreamError(
-            `Model ${model} returned unparseable JSON for schema "${opts.schema.name}"`,
-            502,
-            true,
-          );
-        }
+      const result: ChatResult<T> = {
+        content,
+        parsed: opts.schema ? extractJson<T>(content) : null,
+        model: raw?.model ?? model,
+        promptTokens: usage.prompt_tokens ?? 0,
+        completionTokens: usage.completion_tokens ?? 0,
+        costUsd: typeof usage.cost === "number" ? usage.cost : 0,
+        latencyMs,
+      };
 
-        return result;
-      } catch (err) {
-        clearTimeout(timer);
-        lastError = err;
-
-        const retryable = err instanceof UpstreamError
-          ? err.retryable
-          : (err as Error)?.name === "AbortError";
-
-        if (!retryable || attempt === maxRetries) break;
-
-        // Exponential backoff with jitter — avoids thundering herd on 429s
-        const backoff = Math.min(8000, 500 * 2 ** attempt) + Math.random() * 300;
-        console.warn(`[openrouter] ${model} attempt ${attempt + 1} failed, retrying in ${Math.round(backoff)}ms`);
-        await sleep(backoff);
+      // A schema was requested but nothing parseable came back — treat as a
+      // failed generation so the retry gets a chance.
+      if (opts.schema && result.parsed === null) {
+        throw new UpstreamError(
+          `Model returned unparseable JSON for schema "${opts.schema.name}"`,
+          502,
+          true,
+        );
       }
-    }
-    if (fallback && model === primary) {
-      console.warn(`[openrouter] primary ${primary} exhausted, falling back to ${fallback}`);
+
+      return result;
+    } catch (err) {
+      clearTimeout(timer);
+      lastError = err;
+
+      const retryable = err instanceof UpstreamError
+        ? err.retryable
+        : (err as Error)?.name === "AbortError";
+
+      if (!retryable || attempt === maxRetries) break;
+
+      // Exponential backoff with jitter — avoids hammering a rate limit.
+      const backoff = Math.min(8000, 500 * 2 ** attempt) + Math.random() * 300;
+      console.warn(`[openrouter] attempt ${attempt + 1} failed, retrying in ${Math.round(backoff)}ms`);
+      await sleep(backoff);
     }
   }
 
