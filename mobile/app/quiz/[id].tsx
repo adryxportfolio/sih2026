@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from "react";
-import { View, Pressable, ScrollView, StyleSheet, Alert } from "react-native";
+import { View, Pressable, ScrollView, StyleSheet, Alert, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +10,10 @@ import {
   Txt, Row, Card, Button, Badge, ProgressBar, Divider, IconButton, LevelBadge,
 } from "../../src/components/ui";
 import { BloomBars } from "../../src/components/charts";
+import {
+  Squish, Appear, Stagger, CountUp, Confetti, useShake,
+  AnimatedRing, GrowBar, SPRING,
+} from "../../src/components/motion";
 import { DEMO_QUIZ } from "../../src/lib/demo";
 
 type Phase = "answering" | "confidence" | "revealed" | "done";
@@ -26,6 +30,9 @@ export default function QuizPlayer() {
   const t = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { width } = useWindowDimensions();
+  const { style: shakeStyle, shake } = useShake();
+  const [celebrate, setCelebrate] = useState(false);
 
   const quiz = DEMO_QUIZ;
   const [idx, setIdx] = useState(0);
@@ -53,6 +60,9 @@ export default function QuizPlayer() {
     Haptics.notificationAsync(
       correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
     ).catch(() => {});
+    // A wrong answer shakes the card. Physical feedback lands before the eye
+    // has finished reading the explanation.
+    if (!correct) shake();
     setAnswers((a) => [...a, {
       questionId: q.id, selected, correct, confidence: c,
       timeMs: Date.now() - startedAt.current,
@@ -60,7 +70,15 @@ export default function QuizPlayer() {
   };
 
   const next = () => {
-    if (isLast) { setPhase("done"); return; }
+    if (isLast) {
+      const got = answers.filter((a) => a.correct).length;
+      if (got / Math.max(1, answers.length) >= 0.7) {
+        setCelebrate(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      setPhase("done");
+      return;
+    }
     setIdx((i) => i + 1);
     setSelected(null);
     setConfidence(null);
@@ -92,25 +110,47 @@ export default function QuizPlayer() {
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: t.color.bg }}>
+        <Confetti active={celebrate} width={width} onDone={() => setCelebrate(false)} />
         <ScrollView contentContainerStyle={{ padding: space.base, paddingBottom: space.huge }}>
-          <Animated.View entering={FadeInDown.duration(420)} style={{ alignItems: "center", paddingVertical: space.xl }}>
-            <View style={{
-              width: 84, height: 84, borderRadius: 42,
-              backgroundColor: score >= 0.7 ? t.color.successSoft : t.color.warningSoft,
-              alignItems: "center", justifyContent: "center", marginBottom: space.base,
-            }}>
-              <Ionicons
-                name={score >= 0.7 ? "trophy" : "trending-up"}
-                size={38}
+          <Appear from="scale" duration={520}>
+            <View style={{ alignItems: "center", paddingVertical: space.xl }}>
+              <AnimatedRing
+                value={score}
+                size={172}
+                stroke={13}
+                delay={220}
                 color={score >= 0.7 ? t.color.success : t.color.warning}
-              />
+              >
+                <CountUp
+                  value={Math.round(score * 100)}
+                  suffix="%"
+                  variant="display"
+                  delay={220}
+                  duration={900}
+                />
+                <Txt variant="overline" tone="subtle" style={{ marginTop: 2 }}>
+                  {correct} OF {answers.length}
+                </Txt>
+              </AnimatedRing>
+
+              <Appear delay={780} from="bottom">
+                <Txt variant="h3" center style={{ marginTop: space.lg }}>
+                  {score >= 0.9 ? "Outstanding"
+                    : score >= 0.7 ? "Solid work"
+                    : score >= 0.5 ? "Worth another pass"
+                    : "This one found a real gap"}
+                </Txt>
+                <Txt variant="small" tone="muted" center style={{ marginTop: 4, maxWidth: 300 }}>
+                  {score >= 0.7
+                    ? "Your competency profile has been updated and your plan re-prioritised."
+                    : "That is useful information, not a failure — we now know exactly what to target."}
+                </Txt>
+              </Appear>
             </View>
-            <Txt variant="display">{Math.round(score * 100)}%</Txt>
-            <Txt variant="body" tone="muted">{correct} of {answers.length} correct</Txt>
-          </Animated.View>
+          </Appear>
 
           {/* Calibration — the metacognition payoff */}
-          <Animated.View entering={FadeInDown.delay(120).duration(360)}>
+          <Appear delay={900} from="bottom">
             <Card level={2} tone="primary">
               <Row gap={space.sm} style={{ marginBottom: space.sm }}>
                 <Ionicons name="compass" size={16} color={t.color.primary} />
@@ -134,9 +174,9 @@ export default function QuizPlayer() {
                     : "Your confidence tracked your accuracy closely. That self-awareness is what lets you know when to double-check your own work."}
               </Txt>
             </Card>
-          </Animated.View>
+          </Appear>
 
-          <Animated.View entering={FadeInDown.delay(200).duration(360)}>
+          <Appear delay={1020} from="bottom">
             <Card level={1} style={{ marginTop: space.md }}>
               <Txt variant="bodyMd" style={{ marginBottom: space.md }}>Cognitive level tested</Txt>
               <BloomBars counts={bloomCounts} />
@@ -145,9 +185,9 @@ export default function QuizPlayer() {
                 toward Remember only measures recall.
               </Txt>
             </Card>
-          </Animated.View>
+          </Appear>
 
-          <Animated.View entering={FadeInDown.delay(280).duration(360)}>
+          <Appear delay={1140} from="bottom">
             <Card level={1} style={{ marginTop: space.md }}>
               <Txt variant="bodyMd" style={{ marginBottom: space.md }}>Competency impact</Txt>
               {["FUN-SAMP-01", "FUN-CLEAN-01", "FUN-CONF-01"].map((code) => {
@@ -175,7 +215,7 @@ export default function QuizPlayer() {
                 These results update your FRAC profile and re-prioritise your plan.
               </Txt>
             </Card>
-          </Animated.View>
+          </Appear>
 
           <Button label="Back to library" full size="lg" style={{ marginTop: space.xl }}
                   onPress={() => router.back()} icon="arrow-back" />
@@ -211,7 +251,7 @@ export default function QuizPlayer() {
 
           <Txt variant="h3" style={{ lineHeight: 27, marginBottom: space.lg }}>{q.stem}</Txt>
 
-          <View style={{ gap: space.md }}>
+          <Animated.View style={[{ gap: space.md }, shakeStyle]}>
             {q.options.map((opt) => {
               const chosen = selected === opt.id;
               const correctOpt = q.correct_option_ids.includes(opt.id);
@@ -284,7 +324,7 @@ export default function QuizPlayer() {
                 </Pressable>
               );
             })}
-          </View>
+          </Animated.View>
 
           {/* Explanation */}
           {phase === "revealed" ? (

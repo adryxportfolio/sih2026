@@ -146,19 +146,28 @@ These are the interventions with the strongest replication records, and where ea
 └───────────────┘
 ```
 
-### Model routing
+### One model, deliberately
 
-Routing is a decision, not a default. Each tier earns its place:
+Everything runs on **`deepseek/deepseek-v4-flash`** via OpenRouter. A single pinned model
+is a design decision, not a shortcut:
 
-| Tier | Model | Context | Used for | Why |
-|---|---|---|---|---|
-| `fast` | `deepseek/deepseek-v4-flash` | 1M | MCQ generation, flashcards, summarisation | $0.09/M in. A 1M window means an entire textbook fits in one call, so no chunk-stitching artefacts. |
-| `balanced` | `moonshotai/kimi-k2.5` | 262K | Vision OCR for scanned PDFs | DeepSeek v4 Flash is text-only. A large share of Indian government training material is scanned — a text-only pipeline would silently return empty documents. |
-| `reasoning` | `moonshotai/kimi-k2.6` | 262K | Gap diagnosis, path planning, video vetting | Judgement calls where being wrong costs an officer weeks. |
+| Property | Value | Why it matters here |
+|---|---|---|
+| Context | **1M tokens** | An entire 150-page training handbook fits in one call. No chunk-stitching, so questions cannot contradict each other across chunk boundaries. |
+| Cost | **~$0.09 / M input** | A 20-question quiz from a full PDF costs well under a cent. That is what makes per-learner, on-demand generation viable for a workforce of thousands rather than a demo for five. |
+| Output | **Strict JSON schema** | Decoding is grammar-constrained, so response shape is guaranteed rather than parsed and prayed over. |
 
-All three support **strict JSON-schema structured output**, so generation shape is guaranteed
-by grammar-constrained decoding rather than by parsing prose. Every call is retried, falls
-back across models, and is cost-audited into `ai_generations`.
+The tradeoff is stated rather than hidden: the model is **text-only**. A scanned PDF with no
+text layer is rejected with an actionable message instead of being silently indexed as an
+empty document and then generating confident nonsense from it. `modelSupportsVision()` gates
+the OCR path, so it lights up automatically if a vision model is ever configured.
+
+Every call is retried with jittered backoff and cost-audited into `ai_generations`.
+
+> We evaluated NVIDIA Build as a dev-phase provider first. Their catalogue lists
+> `moonshotai/kimi-k2.6` but the account is not entitled for it (`404 Not found for account`),
+> `kimi-k2.5` is absent entirely, and the endpoint timed out under load. We dropped it before
+> writing any integration code rather than discovering this during judging.
 
 ---
 
@@ -209,7 +218,8 @@ The app runs in demo mode without any of this.
 ```
 mobile/                    Expo / React Native app
   app/                     expo-router screens
-  src/theme/               design tokens (white · purple · black)
+  src/theme/               design tokens (white · black · greys)
+  src/components/motion.tsx  animation kit (Reanimated worklets)
   src/components/          UI kit + SVG data visualisation
   src/lib/fsrs.ts          FSRS-6, verified against py-fsrs
   src/lib/demo.ts          offline demo dataset

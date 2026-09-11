@@ -9,6 +9,7 @@ import {
   ProgressBar, LevelBadge, Divider, useOnInverse,
 } from "../../src/components/ui";
 import { Sparkline, GapBar } from "../../src/components/charts";
+import { CountUp, Appear, GrowBar } from "../../src/components/motion";
 import { useSession } from "../../src/store/session";
 import {
   DEMO_COMPETENCIES, DEMO_PATH, DEMO_CARDS, DEMO_ACCURACY_TREND, demoHeatmap,
@@ -91,7 +92,7 @@ export default function Today() {
             <View style={{ flex: 1 }}>
               <Txt variant="overline" style={{ color: onInv.muted }}>TODAY'S GOAL</Txt>
               <Row gap={6} align="flex-end" style={{ marginTop: 6 }}>
-                <Txt variant="display" style={{ color: onInv.strong }}>{todayMinutes}</Txt>
+                <CountUp value={todayMinutes} variant="display" delay={150} style={{ color: onInv.strong }} />
                 <Txt variant="body" style={{ color: onInv.muted, marginBottom: 6 }}>
                   / {goal} min
                 </Txt>
@@ -107,15 +108,14 @@ export default function Today() {
             </View>
           </Row>
 
-          <View style={{
-            height: 7, borderRadius: 4, marginTop: space.md,
-            backgroundColor: onInv.fillStrong, overflow: "hidden",
-          }}>
-            <View style={{
-              width: `${Math.min(1, goalPct) * 100}%`, height: "100%",
-              backgroundColor: onInv.strong, borderRadius: 4,
-            }} />
-          </View>
+          <GrowBar
+            value={goalPct}
+            height={7}
+            delay={320}
+            color={onInv.strong}
+            trackColor={onInv.fillStrong}
+            style={{ marginTop: space.md }}
+          />
 
           <Txt variant="small" style={{ color: onInv.muted, marginTop: space.md }}>
             {goalPct >= 1
@@ -156,20 +156,20 @@ export default function Today() {
         <Row gap={space.md} style={{ marginTop: space.base }}>
           <StatTile
             label="Due now" value={dueCards} sub="flashcards"
-            icon="albums-outline" tone="neutral"
+            icon="albums-outline" tone="neutral" delay={260}
             onPress={() => router.push("/review")}
           />
           <StatTile
             label="Gaps closed" value={`${gapsClosed}/${DEMO_COMPETENCIES.length}`} sub="competencies"
-            icon="trending-up" tone="neutral"
+            icon="trending-up" tone="neutral" delay={340}
             onPress={() => router.push("/(tabs)/insights")}
           />
         </Row>
         <Row gap={space.md} style={{ marginTop: space.md }}>
           <StatTile label="Total XP" value={(profile?.xp ?? 0).toLocaleString()} sub="all time"
-                    icon="sparkles" tone="neutral" />
+                    icon="sparkles" tone="neutral" delay={420} />
           <StatTile label="Best streak" value={profile?.streak_longest ?? 0} sub="days"
-                    icon="flame" tone="neutral" />
+                    icon="flame" tone="neutral" delay={500} />
         </Row>
       </Animated.View>
 

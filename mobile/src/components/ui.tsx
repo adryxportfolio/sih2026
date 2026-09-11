@@ -18,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme, space, radius, type as typo, elevation, motion } from "../theme";
+import { CountUp, Squish, GrowBar } from "./motion";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -439,19 +440,28 @@ export function ProgressBar({
 //  STAT TILE
 // ─────────────────────────────────────────────────────────────────────────────
 export function StatTile({
-  label, value, sub, icon, tone = "primary", style, onPress,
+  label, value, sub, icon, tone = "primary", style, onPress, delay = 0, animate = true,
 }: {
   label: string; value: string | number; sub?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   tone?: "primary" | "success" | "warning" | "danger" | "neutral";
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  delay?: number;
+  animate?: boolean;
 }) {
   const t = useTheme();
   const c = {
     primary: t.color.primary, success: t.color.success, warning: t.color.warning,
     danger: t.color.danger, neutral: t.color.textMuted,
   }[tone];
+
+  // Count up whenever the value is a plain number (or a plain numeric string).
+  // A figure that animates to its value reads as measured rather than
+  // hard-coded — worth it here, and nowhere that updates frequently.
+  const numeric = typeof value === "number"
+    ? value
+    : /^[\d,]+$/.test(String(value)) ? Number(String(value).replace(/,/g, "")) : null;
 
   return (
     <Card level={1} style={[{ flex: 1, minWidth: 0 }, style]} onPress={onPress}>
@@ -468,9 +478,15 @@ export function StatTile({
           </View>
         ) : null}
       </Row>
-      <Text style={[typo.h1, { color: t.color.text, marginTop: space.sm }]} numberOfLines={1}>
-        {value}
-      </Text>
+
+      <View style={{ marginTop: space.sm }}>
+        {animate && numeric !== null ? (
+          <CountUp value={numeric} variant="h1" delay={delay} duration={900} />
+        ) : (
+          <Text style={[typo.h1, { color: t.color.text }]} numberOfLines={1}>{value}</Text>
+        )}
+      </View>
+
       {sub ? (
         <Text style={[typo.caption, { color: t.color.textSubtle, marginTop: 2 }]} numberOfLines={1}>
           {sub}

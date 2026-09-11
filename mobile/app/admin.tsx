@@ -22,6 +22,7 @@ import {
   IconButton, ProgressBar, Chip, StatTile, useOnInverse,
 } from "../src/components/ui";
 import { Sparkline, ProgressRing } from "../src/components/charts";
+import { CountUp, Appear, Stagger, GrowBar } from "../src/components/motion";
 import {
   DEMO_ORG_SUMMARY, DEMO_ORG_GAPS, DEMO_FAMILY_HEALTH,
   DEMO_TRAINING_DEMAND, DEMO_OFFICE_BREAKDOWN, DEMO_ORG_TREND,
@@ -76,9 +77,13 @@ export default function AdminDashboard() {
             <View>
               <Txt variant="overline" style={{ color: onInv.muted }}>WORKFORCE COMPETENCY</Txt>
               <Row gap={8} align="flex-end" style={{ marginTop: 6 }}>
-                <Txt variant="display" style={{ color: onInv.strong }}>
-                  {Math.round(s.avg_competency * 100)}%
-                </Txt>
+                <CountUp
+                  value={Math.round(s.avg_competency * 100)}
+                  suffix="%"
+                  variant="display"
+                  delay={160}
+                  style={{ color: onInv.strong }}
+                />
                 <Row gap={2} style={{ marginBottom: 9 }}>
                   <Ionicons name="arrow-up" size={13} color={onInv.strong} />
                   <Txt variant="caption" style={{ color: onInv.muted }}>
@@ -151,7 +156,8 @@ export default function AdminDashboard() {
                       {Math.round(f.avg * 100)}%
                     </Txt>
                   </Row>
-                  <ProgressBar value={f.avg} height={7} tone={weak ? "danger" : "primary"} />
+                  <GrowBar value={f.avg} height={7} delay={420}
+                           color={weak ? t.color.danger : t.color.text} />
                 </View>
               );
             })}
@@ -339,7 +345,7 @@ function HeadlineStat({
 }: { label: string; value: string; onInv: ReturnType<typeof useOnInverse> }) {
   return (
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Txt variant="h3" style={{ color: onInv.strong }} numberOfLines={1} adjustsFontSizeToFit>
+      <Txt variant="h3" style={{ color: onInv.strong }} numberOfLines={1}>
         {value}
       </Txt>
       {/* Explicitly sized rather than relying on adjustsFontSizeToFit, which

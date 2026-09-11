@@ -9,6 +9,7 @@ import {
   LevelBadge, Divider, ProgressBar,
 } from "../../src/components/ui";
 import { CompetencyRadar, StreakHeatmap, GapBar, ProgressRing } from "../../src/components/charts";
+import { CountUp, AnimatedRing, Appear, GrowBar } from "../../src/components/motion";
 import { DEMO_COMPETENCIES, DEMO_DIAGNOSIS, DEMO_MISCONCEPTIONS, DEMO_ZPD, demoHeatmap } from "../../src/lib/demo";
 
 type Filter = "all" | "functional" | "technical" | "digital_governance" | "behavioural" | "domain";
@@ -65,14 +66,16 @@ export default function Insights() {
       <Animated.View entering={FadeInDown.duration(360)}>
         <Card level={2}>
           <Row gap={space.lg}>
-            <ProgressRing
+            <AnimatedRing
               value={readiness}
               size={104}
               stroke={9}
-              label={`${Math.round(readiness * 100)}%`}
-              sublabel="READY"
-              tone={readiness > 0.7 ? t.color.success : t.color.primary}
-            />
+              delay={200}
+              color={readiness > 0.7 ? t.color.success : t.color.text}
+            >
+              <CountUp value={Math.round(readiness * 100)} suffix="%" variant="h2" delay={200} />
+              <Txt variant="overline" tone="subtle">READY</Txt>
+            </AnimatedRing>
             <View style={{ flex: 1, gap: space.sm }}>
               <View>
                 <Txt variant="h3">Role readiness</Txt>

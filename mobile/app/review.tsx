@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from "react";
-import { View, Pressable, ScrollView, StyleSheet } from "react-native";
+import { View, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeIn, FadeInUp, FadeInDown, SlideInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,6 +7,9 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme, space, radius, elevation } from "../src/theme";
 import { Txt, Row, Card, Button, Badge, ProgressBar, IconButton, Divider } from "../src/components/ui";
+import {
+  FlipCard, Squish, Appear, CountUp, AnimatedRing, Confetti, SPRING,
+} from "../src/components/motion";
 import { FSRS, cardFromRow, formatInterval, type FsrsCard, type Rating } from "../src/lib/fsrs";
 import { DEMO_CARDS } from "../src/lib/demo";
 import { useSession } from "../src/store/session";
@@ -22,6 +25,7 @@ export default function Review() {
   const t = useTheme();
   const router = useRouter();
   const { profile } = useSession();
+  const { width } = useWindowDimensions();
 
   const scheduler = useMemo(
     () => new FSRS({ desiredRetention: profile?.desired_retention ?? 0.9 }),
@@ -94,28 +98,30 @@ export default function Review() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: t.color.bg }}>
         <ScrollView contentContainerStyle={{ padding: space.base }}>
-          <Animated.View entering={FadeInDown.duration(420)}
-                         style={{ alignItems: "center", paddingVertical: space.xxxl }}>
-            <View style={{
-              width: 84, height: 84, borderRadius: 42,
-              backgroundColor: t.color.successSoft,
-              alignItems: "center", justifyContent: "center", marginBottom: space.base,
-            }}>
-              <Ionicons name="checkmark-done" size={40} color={t.color.success} />
+          <Confetti active={done > 0} width={width} count={30} />
+          <Appear from="scale" duration={520}>
+            <View style={{ alignItems: "center", paddingVertical: space.xxl }}>
+              <AnimatedRing value={accuracy} size={150} stroke={12} delay={200}
+                            color={t.color.success}>
+                <CountUp value={done} variant="display" delay={200} />
+                <Txt variant="overline" tone="subtle">REVIEWED</Txt>
+              </AnimatedRing>
+              <Appear delay={700}>
+                <Txt variant="h2" center style={{ marginTop: space.lg }}>Session complete</Txt>
+                <Txt variant="body" tone="muted" center style={{ marginTop: 4 }}>
+                  {minutes} minute{minutes === 1 ? "" : "s"} of active recall
+                </Txt>
+              </Appear>
             </View>
-            <Txt variant="h1">Session complete</Txt>
-            <Txt variant="body" tone="muted" center style={{ marginTop: 6 }}>
-              {done} review{done === 1 ? "" : "s"} in {minutes} minute{minutes === 1 ? "" : "s"}
-            </Txt>
-          </Animated.View>
+          </Appear>
 
           <Row gap={space.md}>
             <Card level={1} style={{ flex: 1, alignItems: "center" }}>
-              <Txt variant="h1">{Math.round(accuracy * 100)}%</Txt>
+              <CountUp value={Math.round(accuracy * 100)} suffix="%" variant="h1" delay={820} />
               <Txt variant="overline" tone="subtle">RECALLED</Txt>
             </Card>
             <Card level={1} style={{ flex: 1, alignItems: "center" }}>
-              <Txt variant="h1">+{done * 12}</Txt>
+              <CountUp value={done * 12} prefix="+" variant="h1" delay={920} />
               <Txt variant="overline" tone="subtle">XP EARNED</Txt>
             </Card>
           </Row>
@@ -168,33 +174,30 @@ export default function Review() {
             ) : null}
           </Row>
 
-          <Pressable onPress={() => !flipped && setFlipped(true)}>
-            <Card level={3} style={{ minHeight: 200, justifyContent: "center", padding: space.xl }}>
-              <Txt variant="overline" tone="subtle" style={{ marginBottom: space.md }}>QUESTION</Txt>
-              <Txt variant="h3" style={{ lineHeight: 28 }}>{current.meta.front}</Txt>
-
-              {!flipped ? (
+          <FlipCard
+            flipped={flipped}
+            onFlip={() => setFlipped(true)}
+            front={
+              <Card level={3} style={{ minHeight: 230, justifyContent: "center", padding: space.xl }}>
+                <Txt variant="overline" tone="subtle" style={{ marginBottom: space.md }}>QUESTION</Txt>
+                <Txt variant="h3" style={{ lineHeight: 28 }}>{current.meta.front}</Txt>
                 <Row gap={6} justify="center" style={{ marginTop: space.xl }}>
-                  <Ionicons name="eye-outline" size={15} color={t.color.textSubtle} />
-                  <Txt variant="small" tone="subtle">Try to recall, then tap to reveal</Txt>
+                  <Ionicons name="sync-outline" size={15} color={t.color.textSubtle} />
+                  <Txt variant="small" tone="subtle">Try to recall, then tap to flip</Txt>
                 </Row>
-              ) : null}
-            </Card>
-          </Pressable>
-
-          {flipped ? (
-            <Animated.View entering={FadeInUp.duration(300)}>
-              <Card level={2} tone="primary" style={{ marginTop: space.md, padding: space.xl }}>
+              </Card>
+            }
+            back={
+              <Card level={3} tone="primary" style={{ minHeight: 230, justifyContent: "center", padding: space.xl }}>
                 <Txt variant="overline" tone="primary" style={{ marginBottom: space.md }}>ANSWER</Txt>
                 <Txt variant="bodyLg" style={{ lineHeight: 26 }}>{current.meta.back}</Txt>
-
                 {current.meta.elaboration ? (
                   <>
                     <Divider style={{ marginVertical: space.base }} />
                     <Row gap={6} align="flex-start">
-                      <Ionicons name="bulb" size={14} color={t.color.primary} style={{ marginTop: 2 }} />
+                      <Ionicons name="bulb" size={14} color={t.color.text} style={{ marginTop: 2 }} />
                       <View style={{ flex: 1 }}>
-                        <Txt variant="overline" tone="primary" style={{ marginBottom: 4 }}>WHY</Txt>
+                        <Txt variant="overline" tone="muted" style={{ marginBottom: 4 }}>WHY</Txt>
                         <Txt variant="small" tone="muted" style={{ lineHeight: 21 }}>
                           {current.meta.elaboration}
                         </Txt>
@@ -203,8 +206,14 @@ export default function Review() {
                   </>
                 ) : null}
               </Card>
+            }
+          />
 
-              {/* FSRS internals — shown because explainability is a feature */}
+          {flipped ? (
+            <Appear delay={180} from="bottom">
+              {/* FSRS internals, shown deliberately: a scheduler that explains
+                  itself is trusted, and learners who see stability climb
+                  actually understand why the interval grew. */}
               <Card level={1} style={{ marginTop: space.md }}>
                 <Txt variant="overline" tone="subtle" style={{ marginBottom: space.sm }}>MEMORY STATE</Txt>
                 <Row justify="space-between">
@@ -214,7 +223,7 @@ export default function Review() {
                   <MemStat label="Lapses" value={String(current.card.lapses)} />
                 </Row>
               </Card>
-            </Animated.View>
+            </Appear>
           ) : null}
         </Animated.View>
       </ScrollView>
