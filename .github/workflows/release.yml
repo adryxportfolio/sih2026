@@ -26,7 +26,7 @@ jobs:
   build:
     name: Assemble ${{ matrix.variant }} APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     strategy:
       # Two installable products from one codebase. fail-fast off so a problem
       # in one variant still yields the other — at a demo, one working APK beats
@@ -51,6 +51,17 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ matrix.variant }}-${{ hashFiles('mobile/package-lock.json') }}
+          restore-keys: |
+            gradle-${{ matrix.variant }}-
+            gradle-
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
