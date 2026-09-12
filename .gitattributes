@@ -1,0 +1,22 @@
+# Normalise to LF in the repository. Windows checkouts get native endings for
+# editing, but anything that has to run inside a Linux container, or be read by
+# a shell, stays LF — a CRLF shebang makes a script fail with "bad interpreter",
+# which is a confusing way to lose an afternoon.
+* text=auto eol=lf
+
+*.sh      text eol=lf
+*.mjs     text eol=lf
+*.sql     text eol=lf
+Dockerfile text eol=lf
+
+# Windows-native tooling is happier with CRLF for these.
+*.bat     text eol=crlf
+*.ps1     text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mp4 binary
+*.keystore binary
