@@ -68,6 +68,8 @@ services:
     env_file:
       - ../../.env
     environment:
+      # A locally served model lives on the host, not in this container.
+      SAMIKSHA_LOCAL_MODELS_URL: ${SAMIKSHA_LOCAL_MODELS_URL_DOCKER:-http://host.docker.internal:11434/v1}
       DATABASE_URL: postgres://${POSTGRES_USER:-samiksha}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-samiksha}
       API_HOST: "0.0.0.0"
       DATA_DIR: /data
@@ -86,9 +88,11 @@ services:
       https_proxy: ${https_proxy:-${HTTPS_PROXY:-}}
       no_proxy: ${no_proxy:-${NO_PROXY:-}}
     ports:
-      - "127.0.0.1:3100:3100"
+      - "${BIND_HOST:-127.0.0.1}:3100:3100"
     volumes:
       - ../../data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,6 +107,8 @@ services:
     env_file:
       - ../../.env
     environment:
+      # A locally served model lives on the host, not in this container.
+      SAMIKSHA_LOCAL_MODELS_URL: ${SAMIKSHA_LOCAL_MODELS_URL_DOCKER:-http://host.docker.internal:11434/v1}
       BETTER_AUTH_SECRET: ""
       DATABASE_URL: postgres://${POSTGRES_USER:-samiksha}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-samiksha}
       DATA_DIR: /data
@@ -123,6 +129,8 @@ services:
       no_proxy: ${no_proxy:-${NO_PROXY:-}}
     volumes:
       - ../../data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -139,7 +147,7 @@ services:
       SCREEN_PROXY_SECRET: ${SCREEN_PROXY_SECRET:?Set SCREEN_PROXY_SECRET in .env}
       SAMIKSHA_HOST: ${SAMIKSHA_HOST:-localhost}
     ports:
-      - "127.0.0.1:5173:5173"
+      - "${BIND_HOST:-127.0.0.1}:5173:5173"
     depends_on:
       - api
 

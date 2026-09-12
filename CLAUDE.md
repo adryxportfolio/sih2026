@@ -34,40 +34,47 @@ Two halves that feed each other, and the connection is the point:
 Do not let a change break that link. It is the difference between this and a
 quiz generator with a chatbot attached.
 
-## Running it
+## Running it — one command
+
+```bash
+node scripts/start.mjs
+```
+
+That is the whole thing. It finds this machine's address on the local network,
+writes it into every file that needs to agree about it, generates any missing
+secrets, checks the model server, and brings the stack up in Docker. Safe to
+re-run; it edits values in place.
+
+Add `--native` to run the services directly instead of in containers (faster
+for editing code, but agent computers still need Docker).
+
+If someone asks you to "start the app", "run the server" or "set it up", run
+that script. Do not hand-edit `.env` networking values — four files have to
+agree about one address, and the script is what keeps them agreeing.
 
 ### Prerequisites
-Docker Desktop (**WSL2 backend**, 8 GB+), Node 22.22+/24+/26+, pnpm 9+,
-Postgres 16+, Ollama.
+Docker Desktop (**WSL2 backend**, 8 GB+), Node 22.22+/24+/26+, Ollama.
+The script checks these and says what is missing.
 
 ### Secrets
 Three git-ignored `.env` files. `.env` and `workspace/.env` must be copied from
-the old machine; `mobile/.env` is generated:
+the old machine — they hold the Supabase keys. `mobile/.env` is generated.
 
-```bash
-node scripts/sync-env.mjs
-```
-
-Never commit them, and never put a service role key in the mobile app — only
+Never commit them, and never put a service role key in the mobile app: only
 `EXPO_PUBLIC_*` values reach the APK, and `scripts/sync-env.mjs` refuses to sync
 if a server secret ever carries that prefix.
 
-### Mobile
+### The phone
+The Android app reaches the workspace at the address the script printed. Both
+devices must be on the same network — a phone hotspot is more reliable than
+venue wifi, which often isolates clients from each other.
+
+### Mobile development
 ```bash
 cd mobile
 pnpm install
 pnpm web        # browser preview
 pnpm android    # USB phone, developer mode on
-```
-
-### Workspace
-```bash
-cd workspace
-pnpm install
-pnpm db:generate
-pnpm db:migrate
-pnpm sandbox:build   # large image, do it early
-pnpm dev             # web :5173, api :3100, worker, supervisor :7091
 ```
 
 ## Model configuration
@@ -91,12 +98,15 @@ engine is an operational detail that changes with deployment.
 
 ## Things that will waste your afternoon
 
+- **A container cannot reach the host's `127.0.0.1`.** A model served on the
+  laptop is only reachable from inside Docker via `host.docker.internal`. This
+  is the most confusing failure here, because Ollama is plainly running and
+  plainly refusing to answer. `scripts/start.mjs` handles it.
 - **Blank `SAMIKSHA_COMPUTER_MEMORY`** stops the sandbox supervisor booting
-  entirely. It means "invalid", not "unlimited". Set `2g`.
+  entirely. It means "invalid", not "unlimited". The script sets `2g`.
 - **`BETTER_AUTH_URL` on loopback** lets the phone load the page and then fail
-  every sign-in with a CORS error that never says "wrong origin". When the phone
-  must reach the PC, set `API_HOST=0.0.0.0` and put the LAN IP in `API_URL`,
-  `WEB_ORIGIN`, `BETTER_AUTH_URL` and `EXPO_PUBLIC_WORKSPACE_URL`.
+  every sign-in with a CORS error that never says "wrong origin". The script
+  keeps it aligned with the LAN address.
 - **CRLF in `workspace/infra/sandboxes/computer/start.sh`** makes the container
   fail with `bad interpreter`. `.gitattributes` pins it to LF; do not override.
 - **Long paths.** pnpm nests deeply against the 260-character Windows limit.
