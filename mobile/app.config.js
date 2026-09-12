@@ -51,7 +51,6 @@ module.exports = {
         monochromeImage: "./assets/android-icon-monochrome.png",
       },
       predictiveBackGestureEnabled: false,
-      edgeToEdgeEnabled: true,
       permissions: [
         "android.permission.INTERNET",
         "android.permission.READ_EXTERNAL_STORAGE",

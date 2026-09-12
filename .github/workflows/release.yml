@@ -42,7 +42,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
@@ -136,7 +136,17 @@ jobs:
         working-directory: mobile/android
         run: |
           chmod +x ./gradlew
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
           ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Show APK output on failure
+        if: failure()
+        run: |
+          echo "--- looking for any built APK ---"
+          find mobile/android -name "*.apk" 2>/dev/null || true
+          echo "--- gradle build dir ---"
+          ls -la mobile/android/app/build/outputs 2>/dev/null || echo "no outputs directory"
+
 
       - name: Rename artifact
         id: artifact
