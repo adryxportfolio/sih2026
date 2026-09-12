@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Alert, Switch, Linking } from "react-native";
+import { View, Switch, Linking } from "react-native";
+import { confirmAsync } from "../../src/lib/dialog";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,13 +20,16 @@ export default function Profile() {
   const initials = (profile?.full_name ?? "Officer")
     .split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-  const doSignOut = () => {
-    Alert.alert("Sign out", "You'll need to sign in again to continue.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: async () => {
-        await signOut(); router.replace("/(auth)/sign-in");
-      } },
-    ]);
+  const doSignOut = async () => {
+    const ok = await confirmAsync({
+      title: "Sign out",
+      message: "You'll need to sign in again to continue.",
+      confirmLabel: "Sign out",
+      destructive: true,
+    });
+    if (!ok) return;
+    await signOut();
+    router.replace("/(auth)/sign-in");
   };
 
   return (
@@ -168,7 +172,7 @@ export default function Profile() {
         <SettingRow icon="cube-outline" label="Version" value="1.0.0" />
         <Divider style={{ marginVertical: space.md }} />
         <SettingRow icon="hardware-chip-outline" label="AI models"
-                    value="DeepSeek v4 · Kimi k2.5/k2.6" />
+                    value="DeepSeek v4 Flash · Kimi k2.5" />
         <Divider style={{ marginVertical: space.md }} />
         <SettingRow icon="shield-checkmark-outline" label="Problem statement" value="SIH26101" />
       </Card>

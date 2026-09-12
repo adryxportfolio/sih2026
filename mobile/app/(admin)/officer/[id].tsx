@@ -9,7 +9,7 @@
  *   What happens next?      the prescribed step, and whether it is reachable
  */
 import React, { useMemo, useState, useCallback } from "react";
-import { View, StyleSheet, Alert, RefreshControl } from "react-native";
+import { View, StyleSheet, RefreshControl } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -19,6 +19,7 @@ import {
   LevelBadge, Loading, EmptyState, useOnInverse,
 } from "../../../src/components/ui";
 import { GapBar } from "../../../src/components/charts";
+import { confirmAsync, notify } from "../../../src/lib/dialog";
 import { Appear, CountUp, GrowBar, AnimatedRing } from "../../../src/components/motion";
 import { useSession } from "../../../src/store/session";
 import {
@@ -98,60 +99,49 @@ export default function OfficerDetail() {
   const dot = o.presence === "online" ? t.color.success
             : o.presence === "away"   ? t.color.warning : t.color.border;
 
-  const doReset = () => {
-    Alert.alert(
-      "Reset password?",
-      `A new temporary password will be generated for ${o.full_name}. Their current password stops working immediately.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset", style: "destructive",
-          onPress: async () => {
-            if (isDemo) {
-              Alert.alert("Demo mode", "In demo mode no account is changed.");
-              return;
-            }
-            setBusy(true);
-            try {
-              const res = await resetOfficerPassword(o.user_id);
-              await Clipboard.setStringAsync(
-                `Email: ${o.email}\nPassword: ${res.temporary_password}`,
-              ).catch(() => {});
-              Alert.alert(
-                "Password reset",
-                `New temporary password: ${res.temporary_password}\n\nCopied to clipboard. It is shown once.`,
-              );
-            } catch (e) {
-              Alert.alert("Reset failed", (e as Error).message);
-            } finally { setBusy(false); }
-          },
-        },
-      ],
-    );
+  const doReset = async () => {
+    const ok = await confirmAsync({
+      title: "Reset password?",
+      message: `A new temporary password will be generated for ${o.full_name}. Their current password stops working immediately.`,
+      confirmLabel: "Reset",
+      destructive: true,
+    });
+    if (!ok) return;
+    if (isDemo) {
+      notify("Demo mode", "In demo mode no account is changed.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await resetOfficerPassword(o.user_id);
+      await Clipboard.setStringAsync(
+        `Email: ${o.email}\nPassword: ${res.temporary_password}`,
+      ).catch(() => {});
+      notify(
+        "Password reset",
+        `New temporary password: ${res.temporary_password}\n\nCopied to clipboard. It is shown once.`,
+      );
+    } catch (e) {
+      notify("Reset failed", (e as Error).message);
+    } finally { setBusy(false); }
   };
 
-  const toggleActive = () => {
+  const toggleActive = async () => {
     const turningOff = o.is_active;
-    Alert.alert(
-      turningOff ? "Disable account?" : "Re-enable account?",
-      turningOff
+    const ok = await confirmAsync({
+      title: turningOff ? "Disable account?" : "Re-enable account?",
+      message: turningOff
         ? `${o.full_name} will be unable to sign in. Their competency history is kept — it is a service record.`
         : `${o.full_name} will be able to sign in again.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: turningOff ? "Disable" : "Enable",
-          style: turningOff ? "destructive" : "default",
-          onPress: async () => {
-            if (isDemo) { Alert.alert("Demo mode", "No account is changed in demo mode."); return; }
-            setBusy(true);
-            try { await setOfficerActive(o.user_id, !o.is_active); await load(); }
-            catch (e) { Alert.alert("Update failed", (e as Error).message); }
-            finally { setBusy(false); }
-          },
-        },
-      ],
-    );
+      confirmLabel: turningOff ? "Disable" : "Enable",
+      destructive: turningOff,
+    });
+    if (!ok) return;
+    if (isDemo) { notify("Demo mode", "No account is changed in demo mode."); return; }
+    setBusy(true);
+    try { await setOfficerActive(o.user_id, !o.is_active); await load(); }
+    catch (e) { notify("Update failed", (e as Error).message); }
+    finally { setBusy(false); }
   };
 
   return (

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from "react";
-import { View, Pressable, ScrollView, StyleSheet, Alert, useWindowDimensions } from "react-native";
+import { View, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import {
   Txt, Row, Card, Button, Badge, ProgressBar, Divider, IconButton, LevelBadge,
 } from "../../src/components/ui";
 import { BloomBars } from "../../src/components/charts";
+import { confirmAsync } from "../../src/lib/dialog";
 import {
   Squish, Appear, Stagger, CountUp, Confetti, useShake,
   AnimatedRing, GrowBar, SPRING,
@@ -87,11 +88,15 @@ export default function QuizPlayer() {
     startedAt.current = Date.now();
   };
 
-  const quit = () => {
-    Alert.alert("Leave quiz?", "Your progress on this attempt will be lost.", [
-      { text: "Keep going", style: "cancel" },
-      { text: "Leave", style: "destructive", onPress: () => router.back() },
-    ]);
+  const quit = async () => {
+    const ok = await confirmAsync({
+      title: "Leave quiz?",
+      message: "Your progress on this attempt will be lost.",
+      confirmLabel: "Leave",
+      cancelLabel: "Keep going",
+      destructive: true,
+    });
+    if (ok) router.back();
   };
 
   // ── Results ───────────────────────────────────────────────────────────────

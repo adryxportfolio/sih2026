@@ -346,16 +346,16 @@ export const DEMO_CARDS = [
 ];
 
 export const DEMO_VIDEOS = [
-  { id: "v1", youtube_id: "yGGV0-PxWpw", title: "Stratified Sampling — Clearly Explained with Worked Example",
-    channel_title: "Statistics Learning Centre", duration_seconds: 842, view_count: 412000,
+  { id: "v1", youtube_id: "aXg5RsY_Vpo", title: "Stratified Random Sampling — Clearly Explained",
+    channel_title: "Asad International Academy", duration_seconds: 363, view_count: 412000,
     quality_score: 0.91, quality_rationale: "Derives the variance reduction rather than asserting it, and works a full numerical example at a level appropriate for practising statisticians.",
     competency_code: "FUN-SAMP-01" },
-  { id: "v2", youtube_id: "Zrz_bX2s_zY", title: "Multi-Stage Sampling and Design Weights",
-    channel_title: "Survey Methods", duration_seconds: 1103, view_count: 88000,
+  { id: "v2", youtube_id: "XvsUA5X_qvo", title: "Multi-Stage Sampling Design — Definition & Steps",
+    channel_title: "Research Methods Class", duration_seconds: 1103, view_count: 88000,
     quality_score: 0.87, quality_rationale: "Directly targets the two-stage weight computation, which is the exact procedural gap in this profile.",
     competency_code: "FUN-SAMP-01" },
-  { id: "v3", youtube_id: "oCkmGUlKtRk", title: "Handling Missing Data: Imputation Methods Compared",
-    channel_title: "Quantitative Methods", duration_seconds: 967, view_count: 156000,
+  { id: "v3", youtube_id: "fYhr8eF1ubo", title: "Imputation Methods for Missing Data",
+    channel_title: "Sundog Education", duration_seconds: 967, view_count: 156000,
     quality_score: 0.84, quality_rationale: "Shows the variance consequence of mean imputation empirically instead of only warning about it.",
     competency_code: "FUN-CLEAN-01" },
 ];

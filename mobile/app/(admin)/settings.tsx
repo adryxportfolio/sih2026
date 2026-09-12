@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Alert } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, space, radius } from "../../src/theme";
@@ -9,6 +9,7 @@ import {
 import { Appear } from "../../src/components/motion";
 import { useSession } from "../../src/store/session";
 import { isSupabaseConfigured } from "../../src/lib/supabase";
+import { confirmAsync } from "../../src/lib/dialog";
 
 export default function AdminSettings() {
   const t = useTheme();
@@ -16,12 +17,16 @@ export default function AdminSettings() {
   const onInv = useOnInverse();
   const { profile, signOut, isDemo } = useSession();
 
-  const doSignOut = () => {
-    Alert.alert("Sign out", "You'll need to sign in again.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive",
-        onPress: async () => { await signOut(); router.replace("/(auth)/sign-in"); } },
-    ]);
+  const doSignOut = async () => {
+    const ok = await confirmAsync({
+      title: "Sign out",
+      message: "You'll need to sign in again.",
+      confirmLabel: "Sign out",
+      destructive: true,
+    });
+    if (!ok) return;
+    await signOut();
+    router.replace("/(auth)/sign-in");
   };
 
   return (

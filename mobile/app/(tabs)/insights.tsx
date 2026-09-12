@@ -123,7 +123,7 @@ export default function Insights() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Txt variant="bodyMd">Competency assessment</Txt>
-                  <Txt variant="overline" tone="subtle">KIMI K2.6 · DETERMINISTIC GAP MATHS</Txt>
+                  <Txt variant="overline" tone="subtle">DEEPSEEK V4 FLASH · DETERMINISTIC GAP MATHS</Txt>
                 </View>
               </Row>
               <Ionicons name={showDiagnosis ? "chevron-up" : "chevron-down"} size={16} color={t.color.primary} />

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Pressable, ActivityIndicator, Alert } from "react-native";
+import { View, Pressable, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import {
   Screen, Txt, Row, Card, Button, Badge, SectionHeader, Chip, Divider, EmptyState,
 } from "../../src/components/ui";
 import { DEMO_QUIZ, DEMO_VIDEOS, DEMO_CARDS } from "../../src/lib/demo";
+import { notify } from "../../src/lib/dialog";
 import { useSession } from "../../src/store/session";
 
 type Tab = "materials" | "quizzes" | "videos" | "decks";
@@ -39,7 +40,7 @@ export default function Library() {
       setUploading(true);
       setTimeout(() => {
         setUploading(false);
-        Alert.alert(
+        notify(
           "Demo mode",
           isDemo
             ? "In demo mode uploads aren't sent anywhere. With Supabase connected, this file would be extracted (with vision OCR if it's a scan), chunked, embedded, and turned into a competency-tagged quiz."

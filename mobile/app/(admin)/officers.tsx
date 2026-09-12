@@ -10,7 +10,7 @@
  */
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  View, TextInput, StyleSheet, RefreshControl, Alert, Modal, ScrollView, Pressable,
+  View, TextInput, StyleSheet, RefreshControl, Modal, ScrollView, Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +21,7 @@ import {
 } from "../../src/components/ui";
 import { Appear, Stagger, Squish, CountUp, GrowBar } from "../../src/components/motion";
 import { useSession } from "../../src/store/session";
+import { notify } from "../../src/lib/dialog";
 import {
   listOfficers, createOfficer, resetOfficerPassword, setOfficerActive,
   type OfficerOverview,
@@ -414,7 +415,7 @@ function CreateOfficerSheet({
                         Clipboard.setStringAsync(
                           `Email: ${result.email}\nPassword: ${result.password}`,
                         ).catch(() => {});
-                        Alert.alert("Copied", "Credentials copied to clipboard.");
+                        notify("Copied", "Credentials copied to clipboard.");
                       }}
                     >
                       <Ionicons name="copy-outline" size={20} color={t.color.textMuted} />
