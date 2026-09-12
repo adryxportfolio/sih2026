@@ -1,7 +1,10 @@
-name: Build Android APK
+name: Release
 
-# Produces a signed, installable APK and attaches it to a GitHub Release, so
-# judges can download and run it straight from the repo's Releases page.
+# Produces the three installable artifacts and attaches them to a GitHub
+# Release, so judges download and run them straight from the repo:
+#   Samiksha-Officer-<tag>.apk  — the learner app
+#   Samiksha-Admin-<tag>.apk    — the administrator app
+#   Samiksha-Workspace-Setup-<tag>.exe — the desktop agent workspace
 #
 # Cost: nothing. GitHub Actions is free for public repositories, and the whole
 # toolchain (JDK, Android SDK, Gradle) is preinstalled on the runner image.
@@ -21,9 +24,16 @@ permissions:
 
 jobs:
   build:
-    name: Assemble release APK
+    name: Assemble ${{ matrix.variant }} APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      # Two installable products from one codebase. fail-fast off so a problem
+      # in one variant still yields the other — at a demo, one working APK beats
+      # none.
+      fail-fast: false
+      matrix:
+        variant: [learner, admin]
 
     steps:
       - name: Checkout
@@ -58,6 +68,8 @@ jobs:
           cat > .env <<EOF
           EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_WORKSPACE_URL=${{ secrets.EXPO_PUBLIC_WORKSPACE_URL }}
+          EXPO_PUBLIC_APP_VARIANT=${{ matrix.variant }}
           EOF
           echo "Wrote .env with $(wc -l < .env) client-safe vars"
 
@@ -67,6 +79,10 @@ jobs:
 
       - name: Prebuild native Android project
         working-directory: mobile
+        # app.config.js resolves name, package id and icon from this, so it has
+        # to be present for prebuild, not only at JS runtime.
+        env:
+          EXPO_PUBLIC_APP_VARIANT: ${{ matrix.variant }}
         run: npx expo prebuild --platform android --clean --no-install
 
       - name: Generate release keystore
@@ -93,27 +109,28 @@ jobs:
           SAMIKSHA_UPLOAD_KEY_PASSWORD=${{ secrets.KEYSTORE_PASSWORD || 'samiksha2026' }}
           EOF
           # Point the release buildType at our generated keystore
-          python3 - <<'PY'
+          python3 - <<'PYEOF'
           import re, pathlib
           p = pathlib.Path("app/build.gradle")
           s = p.read_text()
           if "SAMIKSHA_UPLOAD_STORE_FILE" not in s:
-              s = s.replace(
+              block = "\n".join([
                   "signingConfigs {",
-                  """signingConfigs {
-        release {
-            storeFile file(SAMIKSHA_UPLOAD_STORE_FILE)
-            storePassword SAMIKSHA_UPLOAD_STORE_PASSWORD
-            keyAlias SAMIKSHA_UPLOAD_KEY_ALIAS
-            keyPassword SAMIKSHA_UPLOAD_KEY_PASSWORD
-        }""", 1)
+                  "        release {",
+                  "            storeFile file(SAMIKSHA_UPLOAD_STORE_FILE)",
+                  "            storePassword SAMIKSHA_UPLOAD_STORE_PASSWORD",
+                  "            keyAlias SAMIKSHA_UPLOAD_KEY_ALIAS",
+                  "            keyPassword SAMIKSHA_UPLOAD_KEY_PASSWORD",
+                  "        }",
+              ])
+              s = s.replace("signingConfigs {", block, 1)
               s = re.sub(
                   r"(buildTypes\s*\{[\s\S]*?release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug",
                   r"\1signingConfig signingConfigs.release",
                   s, count=1)
               p.write_text(s)
-              print("✅ release signing wired into build.gradle")
-          PY
+              print("release signing wired into build.gradle")
+          PYEOF
 
       - name: Build release APK
         working-directory: mobile/android
@@ -126,7 +143,10 @@ jobs:
         run: |
           SRC=mobile/android/app/build/outputs/apk/release/app-release.apk
           TAG="${{ github.event.inputs.release_tag || github.ref_name }}"
-          OUT="Samiksha-${TAG}.apk"
+          case "${{ matrix.variant }}" in
+            admin) OUT="Samiksha-Admin-${TAG}.apk" ;;
+            *)     OUT="Samiksha-Officer-${TAG}.apk" ;;
+          esac
           cp "$SRC" "$OUT"
           echo "path=$OUT" >> $GITHUB_OUTPUT
           echo "tag=$TAG"  >> $GITHUB_OUTPUT
@@ -136,7 +156,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: samiksha-apk
+          name: samiksha-apk-${{ matrix.variant }}
           path: ${{ steps.artifact.outputs.path }}
           retention-days: 90
 
@@ -166,3 +186,67 @@ jobs:
             - FSRS-6 spaced repetition, verified against the reference implementation
             - iGOT Karmayogi adapter built on the Sunbird ED contract
             - AI-vetted YouTube tutoring via the official embedded player
+
+  desktop:
+    name: Build Windows desktop app
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # Independent of the APKs on purpose. The Electron build pulls the whole
+    # workspace monorepo, so if it breaks the two Android artifacts still ship —
+    # at a demo, two working installers beat an all-or-nothing release.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        working-directory: workspace
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: workspace
+        run: pnpm db:generate
+
+      - name: Typecheck
+        working-directory: workspace
+        run: pnpm check
+
+      - name: Build desktop installer
+        working-directory: workspace
+        # --publish never: this workflow attaches the artifact itself rather
+        # than letting electron-builder talk to the releases API.
+        run: pnpm --filter @samiksha/desktop release
+
+      - name: Collect installer
+        id: installer
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.release_tag || github.ref_name }}"
+          SRC=$(find workspace/apps/desktop/out -maxdepth 1 -name "*.exe" | head -1)
+          if [ -z "$SRC" ]; then echo "No installer produced"; exit 1; fi
+          OUT="Samiksha-Workspace-Setup-${TAG}.exe"
+          cp "$SRC" "$OUT"
+          echo "path=$OUT" >> $GITHUB_OUTPUT
+          echo "tag=$TAG"  >> $GITHUB_OUTPUT
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: samiksha-desktop
+          path: ${{ steps.installer.outputs.path }}
+          retention-days: 90
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.installer.outputs.tag }}
+          files: ${{ steps.installer.outputs.path }}

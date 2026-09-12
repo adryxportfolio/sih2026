@@ -92,7 +92,10 @@ export function localProvider(): Provider | undefined {
   if (!ids.length) return undefined;
   return createProvider({
     id: LOCAL_PROVIDER_ID,
-    name: "Local (Ollama / LM Studio)",
+    // Named for what it is to the department — inference on their own
+    // hardware — rather than for whichever server is behind it. The engine
+    // is an operational choice and does not belong in an officer's UI.
+    name: "Samiksha AI (on-premise)",
     baseUrl: localBaseUrl(),
     auth: {
       apiKey: {

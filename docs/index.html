@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Samiksha — Downloads</title>
+<style>
+  :root{ --bg:#ffffff; --ink:#000000; --muted:#666; --line:#e4e4e4; --sunken:#fafafa; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0a0a0a; --ink:#ffffff; --muted:#9a9a9a; --line:#262626; --sunken:#141414; }
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:760px; margin:0 auto; padding:64px 24px 96px; }
+  .tag{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  h1{ font-size:44px; line-height:1.1; letter-spacing:-.03em; margin:10px 0 14px; }
+  .sub{ color:var(--muted); font-size:18px; margin:0 0 12px; max-width:56ch; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 44px; }
+  .chip{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    border:1px solid var(--line); border-radius:100px; padding:5px 11px; }
+  h2{ font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+    margin:44px 0 14px; font-weight:600; }
+  .card{ display:block; text-decoration:none; color:inherit; border:1px solid var(--line);
+    border-radius:14px; padding:20px 22px; margin-bottom:12px; background:var(--sunken);
+    transition:border-color .15s ease, transform .15s ease; }
+  .card:hover{ border-color:var(--ink); transform:translateY(-1px); }
+  .card-top{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+  .card h3{ margin:0; font-size:19px; letter-spacing:-.01em; }
+  .card .meta{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    white-space:nowrap; }
+  .card p{ margin:7px 0 0; color:var(--muted); font-size:15px; }
+  ol{ color:var(--muted); padding-left:20px; }
+  ol li{ margin:7px 0; }
+  code{ background:var(--sunken); border:1px solid var(--line); border-radius:5px;
+    padding:1px 6px; font-size:13px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  footer{ margin-top:64px; padding-top:22px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:13px; }
+  a.plain{ color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tag">Smart India Hackathon 2026 · SIH26101</div>
+  <h1>Samiksha</h1>
+  <p class="sub">
+    AI-enabled capacity building for India's Official Statistical System. Finds the
+    competency gaps in a statistical officer's profile, teaches what is missing, and
+    gives them AI agents to hand the repetitive work to.
+  </p>
+  <div class="chips">
+    <span class="chip">MoSPI</span>
+    <span class="chip">NSSTA</span>
+    <span class="chip">iGOT Karmayogi</span>
+    <span class="chip">FRAC aligned</span>
+  </div>
+
+  <h2>Download</h2>
+
+  <a class="card" href="https://github.com/adryxportfolio/sih2026/releases/latest/download/Samiksha-Officer-v1.0.0.apk">
+    <div class="card-top"><h3>Samiksha — Officer</h3><span class="meta">Android · APK</span></div>
+    <p>The learner app. Competency profile, adaptive diagnostic, spaced repetition,
+       quizzes generated from your own material, and the AI workspace.</p>
+  </a>
+
+  <a class="card" href="https://github.com/adryxportfolio/sih2026/releases/latest/download/Samiksha-Admin-v1.0.0.apk">
+    <div class="card-top"><h3>Samiksha — Administrator</h3><span class="meta">Android · APK</span></div>
+    <p>Workforce intelligence for a nodal officer: where a department is collectively
+       weak, who is studying what right now, and each officer's next step.</p>
+  </a>
+
+  <a class="card" href="https://github.com/adryxportfolio/sih2026/releases/latest/download/Samiksha-Workspace-Setup-v1.0.0.exe">
+    <div class="card-top"><h3>Samiksha Workspace</h3><span class="meta">Windows · Installer</span></div>
+    <p>The desktop agent workspace. Officers delegate dataset checks, indicator
+       computation and report drafting to AI agents that know where they are weak.</p>
+  </a>
+
+  <h2>Installing on Android</h2>
+  <ol>
+    <li>Download the APK on the phone.</li>
+    <li>Allow <strong>Install unknown apps</strong> for your browser or file manager.</li>
+    <li>Open the downloaded file and install. Android 7.0 or newer.</li>
+    <li>Tap the demo entry to see the full journey — no account or network needed.</li>
+  </ol>
+
+  <h2>Accounts</h2>
+  <p class="sub" style="font-size:15px">
+    Officers do not self-register. An administrator creates each account against a
+    verified employee ID, which is what ties a competency record to a real post
+    rather than to whoever typed an email address. The same credentials open the
+    phone app and the desktop workspace.
+  </p>
+
+  <h2>Running the workspace</h2>
+  <p class="sub" style="font-size:15px">
+    The workspace needs Docker Desktop and a local model server. See
+    <a class="plain" href="https://github.com/adryxportfolio/sih2026/blob/main/docs/workspace-demo-setup.md">workspace-demo-setup.md</a>
+    for the full runbook, and <code>CLAUDE.md</code> in the repository root for the
+    architecture and the failure modes worth knowing in advance.
+  </p>
+
+  <footer>
+    Source: <a class="plain" href="https://github.com/adryxportfolio/sih2026">github.com/adryxportfolio/sih2026</a>
+    · Apache-2.0 · Links resolve to the most recent release.
+  </footer>
+
+</div>
+</body>
+</html>

@@ -11,6 +11,7 @@ import { useTheme, space, radius, type as typo, elevation } from "../../src/them
 import { Txt, Row, Button, Card, Divider, useOnInverse } from "../../src/components/ui";
 import { useSession } from "../../src/store/session";
 import { isSupabaseConfigured } from "../../src/lib/supabase";
+import { IS_ADMIN_BUILD } from "../../src/lib/variant";
 
 export default function SignIn() {
   const t = useTheme();
@@ -230,6 +231,7 @@ export default function SignIn() {
               <Divider style={{ flex: 1 }} />
             </Row>
 
+            {!IS_ADMIN_BUILD ? (
             <Card
               level={1}
               tone="primary"
@@ -252,12 +254,14 @@ export default function SignIn() {
                 <Ionicons name="chevron-forward" size={18} color={t.color.textMuted} />
               </Row>
             </Card>
+            ) : null}
 
             <Card
               level={1}
+              tone={IS_ADMIN_BUILD ? "primary" : undefined}
               onPress={() => goDemo(true)}
               style={{
-                marginTop: space.md,
+                marginTop: IS_ADMIN_BUILD ? 0 : space.md,
                 borderStyle: "dashed", borderWidth: 1.5, borderColor: t.color.borderStrong,
               }}
             >

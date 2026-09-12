@@ -172,7 +172,7 @@ export default function Profile() {
         <SettingRow icon="cube-outline" label="Version" value="1.0.0" />
         <Divider style={{ marginVertical: space.md }} />
         <SettingRow icon="hardware-chip-outline" label="AI models"
-                    value="DeepSeek v4 Flash · Kimi k2.5" />
+                    value="Samiksha AI" />
         <Divider style={{ marginVertical: space.md }} />
         <SettingRow icon="shield-checkmark-outline" label="Problem statement" value="SIH26101" />
       </Card>

@@ -67,9 +67,9 @@ export default function AdminSettings() {
         <StatusRow label="Supabase" value={isDemo ? "Demo mode" : isSupabaseConfigured ? "Connected" : "Not configured"}
                    ok={!isDemo && isSupabaseConfigured} />
         <Divider style={{ marginVertical: space.md }} />
-        <StatusRow label="Text model" value="deepseek-v4-flash" ok />
+        <StatusRow label="Reasoning engine" value="Configured" ok />
         <Divider style={{ marginVertical: space.md }} />
-        <StatusRow label="Vision model" value="kimi-k2.5" ok />
+        <StatusRow label="Document vision" value="Configured" ok />
         <Divider style={{ marginVertical: space.md }} />
         <StatusRow label="iGOT Karmayogi" value="Simulator (real contract)" ok={false} />
       </Card>
