@@ -81,7 +81,9 @@ export default function AdminLayout() {
 
       <FloatingMascot
         tip={tip}
-        onPress={() => router.push("/tutor")}
+        // The mascot is the hand-off point: tap it to delegate work to
+        // your agents. The tutor stays reachable from Today, Library and Insights.
+        onPress={() => router.push("/workspace")}
         bottom={Platform.OS === "ios" ? 104 : 84}
       />
     </View>

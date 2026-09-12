@@ -19,6 +19,8 @@ import { createRepos } from "./repos.js";
 export const DEFAULT_AGENTS = [
   {
     spawnKey: "samiksha.data-quality",
+    // Primary first: what a delegation to this agent is evidence about.
+    competencyCodes: ["FUN-CLEAN-01", "FUN-QUAL-01"],
     name: "Data Quality",
     title: "Validation and anomaly checks",
     description: "Checks incoming datasets before they reach an estimate.",
@@ -39,6 +41,7 @@ export const DEFAULT_AGENTS = [
   },
   {
     spawnKey: "samiksha.data-analyst",
+    competencyCodes: ["TEC-PY-01", "FUN-ANAL-01", "FUN-SAMP-01", "TEC-SQL-01"],
     name: "Data Analyst",
     title: "Cleaning, indicators and summaries",
     description: "Turns a survey dataset into the standard statistical summary.",
@@ -60,6 +63,7 @@ export const DEFAULT_AGENTS = [
   },
   {
     spawnKey: "samiksha.report-assistant",
+    competencyCodes: ["FUN-META-01", "FUN-DISS-01", "BEH-COM-01"],
     name: "Report Assistant",
     title: "Drafting against approved templates",
     description: "Drafts the periodic report from figures the officer has approved.",

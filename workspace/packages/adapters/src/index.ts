@@ -109,3 +109,16 @@ export * from "./web-limits.js";
 export * from "./web-provider-factory.js";
 export * from "./web-ssrf.js";
 export * from "./web-tools.js";
+
+export {
+  competencyConfigFromEnv,
+  loadCompetencyProfile,
+  loadCompetencyContext,
+  formatCompetencyContext,
+  invalidateCompetencyProfile,
+  type CompetencyConfig,
+  type CompetencyProfile,
+  type CompetencyGap,
+  recordDelegation,
+  type DelegationRecord,
+} from "./competency.js";

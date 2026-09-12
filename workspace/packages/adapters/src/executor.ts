@@ -91,6 +91,14 @@ import {
   type ThreadEvents,
 } from "@samiksha/db";
 import { getLogger } from "@samiksha/logging";
+import {
+  competencyConfigFromEnv,
+  loadCompetencyContext,
+  recordDelegation,
+} from "./competency.js";
+
+// Read once: the Supabase project backing officer competency never changes at runtime.
+const competencyConfig = competencyConfigFromEnv(process.env);
 import { parse as parseShellCommand } from "shell-quote";
 import {
   connectAgent,
@@ -1265,7 +1273,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 context,
               )
             : Promise.resolve(null);
-        const [discovered, currentTurnImages, memoryContext, scratchpadContext, recalled] =
+        const [
+          discovered,
+          currentTurnImages,
+          memoryContext,
+          scratchpadContext,
+          recalled,
+          competencyContext,
+        ] =
           await Promise.all([
             discoveredPromise,
             loadCurrentTurnImages(deps, turnBlocks, context),
@@ -1279,6 +1294,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   botId: bot.id,
                 }),
             recallPromise,
+            // Never let a reporting lookup fail a run: the loop tailors the
+            // answer, it is not a precondition for producing one.
+            messagingChannelRun
+              ? Promise.resolve("")
+              : loadCompetencyContext(competencyConfig, context?.userId).catch(() => ""),
           ]);
         const semanticMemoryEnabled = Boolean(semanticMemory) && !messagingChannelRun;
         let recalledMemory = "";
@@ -3404,6 +3424,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               prompt,
               instructions: [
                 bot.instructions || `${bot.name}: ${bot.title}\n${bot.description}`,
+                competencyContext || undefined,
                 groupContext,
                 messagingContext,
                 memoryContext ? redactSecrets(memoryContext, runSecrets) : undefined,
@@ -3939,6 +3960,17 @@ export function createRunExecutor(deps: ExecutorDeps) {
             markUnread: completionMarksUnread(run.trigger, text),
           });
           if (!completed) return;
+          // The officer just had an agent do a piece of their work. That is the
+          // evidence half of the competency loop: fire-and-forget, because a
+          // reporting write must never be able to fail a run that succeeded.
+          void recordDelegation(competencyConfig, {
+            userId: run.userId,
+            agentKey: bot.spawnKey ?? null,
+            agentName: bot.name,
+            taskSummary: prompt,
+            durationSec: (Date.now() - attempt.startedAt.getTime()) / 1000,
+            succeeded: true,
+          });
           if (completed.continuationRunId) {
             await deps.jobs
               .enqueue(runContinueJob(completed.continuationRunId))

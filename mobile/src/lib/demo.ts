@@ -705,3 +705,48 @@ export const DEMO_ADAPTIVE_POOL: AdaptiveDemoItem[] = [
     correct: "b",
     explanation: "Positive correlation between overlapping units reduces the variance of a difference." },
 ];
+
+/**
+ * Where the officer is leaning on their agents.
+ *
+ * This is the competency loop closing: the platform measured a gap, the officer
+ * kept handing that exact work to an agent, and the delegation history turns an
+ * assessment score into an argument about their week. Ananya is measured
+ * unskilled on Python against a post that requires beginner — and has delegated
+ * 23 Python jobs this month, which is the part she can feel.
+ */
+export const DEMO_DEPENDENCY = [
+  {
+    competency_code: "TEC-PY-01",
+    competency_name: "Python for Data Analysis",
+    comp_type: "technical",
+    agent_name: "Data Analyst",
+    delegations_30d: 23,
+    seconds_automated: 27600,
+    gap_size: 2.0,
+    is_critical: true,
+    note: "Every dataset you have been given this month went to the agent. The work you get back is correct, but the analysis is not yours yet.",
+  },
+  {
+    competency_code: "FUN-CLEAN-01",
+    competency_name: "Data Cleaning, Editing and Imputation",
+    comp_type: "functional",
+    agent_name: "Data Quality",
+    delegations_30d: 14,
+    seconds_automated: 12900,
+    gap_size: 1.0,
+    is_critical: true,
+    note: "You catch the missing values once the agent flags them. Reading the pattern yourself is the step still missing.",
+  },
+  {
+    competency_code: "FUN-META-01",
+    competency_name: "Metadata and Statistical Standards (NMDS 2.0)",
+    comp_type: "functional",
+    agent_name: "Report Assistant",
+    delegations_30d: 6,
+    seconds_automated: 5400,
+    gap_size: 1.0,
+    is_critical: false,
+    note: "Six reports drafted against the template without you editing the metadata block.",
+  },
+] as const;

@@ -10,7 +10,7 @@ import {
 } from "../../src/components/ui";
 import { CompetencyRadar, StreakHeatmap, GapBar, ProgressRing } from "../../src/components/charts";
 import { CountUp, AnimatedRing, Appear, GrowBar } from "../../src/components/motion";
-import { DEMO_COMPETENCIES, DEMO_DIAGNOSIS, DEMO_MISCONCEPTIONS, DEMO_ZPD, demoHeatmap } from "../../src/lib/demo";
+import { DEMO_COMPETENCIES, DEMO_DEPENDENCY, DEMO_DIAGNOSIS, DEMO_MISCONCEPTIONS, DEMO_ZPD, demoHeatmap } from "../../src/lib/demo";
 
 type Filter = "all" | "functional" | "technical" | "digital_governance" | "behavioural" | "domain";
 
@@ -238,6 +238,65 @@ export default function Insights() {
             full
             style={{ marginTop: space.base }}
             onPress={() => router.push("/tutor")}
+          />
+        </Card>
+      </Animated.View>
+
+      {/* ── Agent dependency ───────────────────────────────────────────── */}
+      {/* The loop closing: a gap the assessment measured, shown back as the work
+          it is costing them this month. A score is arguable; twenty-three
+          delegated jobs is not. */}
+      <Animated.View entering={FadeInDown.delay(175).duration(360)}>
+        <SectionHeader title="What you are handing to your agents" icon="hardware-chip-outline" />
+        <Card level={1}>
+          <Txt variant="small" tone="muted" style={{ marginBottom: space.base, lineHeight: 21 }}>
+            Delegating work is the point of having agents. These are the ones where you are
+            also <Txt variant="bodyMd">below the level your post requires</Txt> — so the agent
+            is covering a gap rather than saving you time.
+          </Txt>
+
+          <View style={{ gap: space.md }}>
+            {DEMO_DEPENDENCY.map((d) => (
+              <View key={d.competency_code} style={{
+                padding: space.md,
+                borderRadius: radius.md,
+                backgroundColor: t.color.bgSunken,
+                borderLeftWidth: 3,
+                borderLeftColor: d.is_critical ? t.color.danger : t.color.borderStrong,
+              }}>
+                <Row justify="space-between" align="flex-start" style={{ marginBottom: 6 }}>
+                  <View style={{ flex: 1, marginRight: space.sm }}>
+                    <Txt variant="bodyMd" numberOfLines={1}>{d.competency_name}</Txt>
+                    <Txt variant="overline" tone="muted" style={{ marginTop: 2 }}>
+                      {d.competency_code} · VIA {d.agent_name.toUpperCase()}
+                    </Txt>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Txt variant="h3">{d.delegations_30d}</Txt>
+                    <Txt variant="overline" tone="subtle">LAST 30 DAYS</Txt>
+                  </View>
+                </Row>
+                <Txt variant="small" tone="muted" style={{ lineHeight: 20, marginTop: 4 }}>
+                  {d.note}
+                </Txt>
+                <Row gap={4} align="center" style={{ marginTop: space.sm }}>
+                  <Ionicons name="time-outline" size={11} color={t.color.textSubtle} />
+                  <Txt variant="overline" tone="subtle">
+                    {Math.round(d.seconds_automated / 3600)}H SAVED · STILL A GAP
+                  </Txt>
+                </Row>
+              </View>
+            ))}
+          </View>
+
+          <Button
+            label="Close the gap you lean on most"
+            variant="secondary"
+            icon="school-outline"
+            size="sm"
+            full
+            style={{ marginTop: space.base }}
+            onPress={() => router.push("/(tabs)/path")}
           />
         </Card>
       </Animated.View>

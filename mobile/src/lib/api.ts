@@ -247,3 +247,37 @@ export async function recordProgress(p: {
   const row = Array.isArray(data) ? data[0] : data;
   return row as { streak_current: number; goal_met: boolean; xp: number };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  AGENT DEPENDENCY  —  the competency loop, closing
+// ─────────────────────────────────────────────────────────────────────────────
+export interface AgentDependency {
+  competency_code: string;
+  competency_name: string;
+  comp_type: string;
+  delegations: number;
+  delegations_30d: number;
+  seconds_automated: number;
+  gap_size: number | null;
+  is_critical: boolean | null;
+  dependency_score: number;
+}
+
+/**
+ * Where this officer is leaning on their agents for work their post expects
+ * them to be able to do.
+ *
+ * Only rows with a live gap score above zero, because delegating something you
+ * are already proficient at is good delegation, not a development need — the
+ * view keeps those at zero precisely so they do not get read as a weakness.
+ */
+export async function listAgentDependencies(): Promise<AgentDependency[]> {
+  const { data, error } = await supabase
+    .from("v_officer_dependency")
+    .select("*")
+    .gt("dependency_score", 0)
+    .order("dependency_score", { ascending: false })
+    .limit(5);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AgentDependency[];
+}
