@@ -102,6 +102,10 @@ jobs:
       - name: Configure release signing
         working-directory: mobile/android
         run: |
+          # Prebuild leaves gradle.properties without a trailing newline, so an
+          # append glues the first key onto the previous line and silently
+          # corrupts both it and the property above it.
+          printf '\n' >> gradle.properties
           cat >> gradle.properties <<EOF
           SAMIKSHA_UPLOAD_STORE_FILE=release.keystore
           SAMIKSHA_UPLOAD_KEY_ALIAS=samiksha
@@ -140,15 +144,25 @@ jobs:
               print("release signing wired into build.gradle")
           PYEOF
 
+      - name: Verify gradle.properties parses
+        working-directory: mobile/android
+        run: |
+          echo "--- tail of gradle.properties ---"
+          tail -8 gradle.properties
+          # Every non-comment line must be a clean key=value. A glued line is
+          # the failure this guards against, and it is invisible by eye.
+          if grep -nE '^[^#=]+=.*[A-Z_]+=' gradle.properties; then
+            echo "ERROR: a property line contains a second '=' assignment — keys were concatenated"
+            exit 1
+          fi
+          echo "gradle.properties looks clean"
+
       - name: Build release APK
         working-directory: mobile/android
         run: |
           chmod +x ./gradlew
           echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
-          # --info so a failing node subprocess shows its stderr; gradle swallows
-          # it at the default level, which is how an autolinking failure reads as
-          # a bare non-zero exit with no cause.
-          ./gradlew assembleRelease --no-daemon --stacktrace --info 2>&1 | tail -400
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Show APK output on failure
         if: failure()
