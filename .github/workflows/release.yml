@@ -114,13 +114,21 @@ jobs:
           p = pathlib.Path("app/build.gradle")
           s = p.read_text()
           if "SAMIKSHA_UPLOAD_STORE_FILE" not in s:
+              # Inside signingConfigs the Groovy delegate is the SigningConfig
+              # object, and a bare identifier is resolved against it first — AGP's
+              # decorated class raises MissingPropertyException rather than falling
+              # through to the project, so gradle.properties is never consulted.
+              # project.property() reads them unambiguously, and the hasProperty
+              # guard keeps a local debug build working without them.
               block = "\n".join([
                   "signingConfigs {",
                   "        release {",
-                  "            storeFile file(SAMIKSHA_UPLOAD_STORE_FILE)",
-                  "            storePassword SAMIKSHA_UPLOAD_STORE_PASSWORD",
-                  "            keyAlias SAMIKSHA_UPLOAD_KEY_ALIAS",
-                  "            keyPassword SAMIKSHA_UPLOAD_KEY_PASSWORD",
+                  "            if (project.hasProperty('SAMIKSHA_UPLOAD_STORE_FILE')) {",
+                  "                storeFile file(project.property('SAMIKSHA_UPLOAD_STORE_FILE'))",
+                  "                storePassword project.property('SAMIKSHA_UPLOAD_STORE_PASSWORD')",
+                  "                keyAlias project.property('SAMIKSHA_UPLOAD_KEY_ALIAS')",
+                  "                keyPassword project.property('SAMIKSHA_UPLOAD_KEY_PASSWORD')",
+                  "            }",
                   "        }",
               ])
               s = s.replace("signingConfigs {", block, 1)
