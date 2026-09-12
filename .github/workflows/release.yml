@@ -145,7 +145,10 @@ jobs:
         run: |
           chmod +x ./gradlew
           echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          # --info so a failing node subprocess shows its stderr; gradle swallows
+          # it at the default level, which is how an autolinking failure reads as
+          # a bare non-zero exit with no cause.
+          ./gradlew assembleRelease --no-daemon --stacktrace --info 2>&1 | tail -400
 
       - name: Show APK output on failure
         if: failure()
