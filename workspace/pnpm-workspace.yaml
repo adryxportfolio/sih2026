@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "infra/sandboxes/supervisor"
+  - "infra/updater"
+
+# pnpm 11 reads overrides and patches from this file, not package.json.
+overrides:
+  react: "19.2.3"
+  react-dom: "19.2.3"
+patchedDependencies:
+  "app-builder-lib@26.15.3": patches/app-builder-lib@26.15.3.patch

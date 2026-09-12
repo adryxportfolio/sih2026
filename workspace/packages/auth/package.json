@@ -1,0 +1,27 @@
+{
+  "name": "@samiksha/auth",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --root ../.. packages/auth/src"
+  },
+  "dependencies": {
+    "@samiksha/adapter-kit": "workspace:*",
+    "@samiksha/core": "workspace:*",
+    "@samiksha/db": "workspace:*",
+    "better-auth": "1.7.4"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}
