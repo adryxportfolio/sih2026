@@ -4,6 +4,7 @@ name: Release
 # Release, so judges download and run them straight from the repo:
 #   Samiksha-Officer-<tag>.apk  — the learner app
 #   Samiksha-Admin-<tag>.apk    — the administrator app
+#   Samiksha-Demo-<tag>.apk     — both journeys over seeded data, no account
 #   Samiksha-Workspace-Setup-<tag>.exe — the desktop agent workspace
 #
 # Cost: nothing. GitHub Actions is free for public repositories, and the whole
@@ -33,7 +34,7 @@ jobs:
       # none.
       fail-fast: false
       matrix:
-        variant: [learner, admin]
+        variant: [learner, admin, demo]
 
     steps:
       - name: Checkout
@@ -83,6 +84,12 @@ jobs:
           EXPO_PUBLIC_APP_VARIANT=${{ matrix.variant }}
           EOF
           echo "Wrote .env with $(wc -l < .env) client-safe vars"
+          # Without these the app builds but cannot reach Supabase — sign-in and
+          # Samiksha AI fail on the phone. Stop here rather than ship that.
+          if ! grep -qE '^EXPO_PUBLIC_SUPABASE_URL=https://' .env || ! grep -qE '^EXPO_PUBLIC_SUPABASE_ANON_KEY=.{20,}' .env; then
+            echo "::error::EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY repository secrets are missing"
+            exit 1
+          fi
 
       - name: Typecheck
         working-directory: mobile
@@ -191,6 +198,7 @@ jobs:
           TAG="${{ github.event.inputs.release_tag || github.ref_name }}"
           case "${{ matrix.variant }}" in
             admin) OUT="Samiksha-Admin-${TAG}.apk" ;;
+            demo)  OUT="Samiksha-Demo-${TAG}.apk" ;;
             *)     OUT="Samiksha-Officer-${TAG}.apk" ;;
           esac
           cp "$SRC" "$OUT"
@@ -218,11 +226,16 @@ jobs:
 
             **Smart India Hackathon 2026 · Problem Statement SIH26101**
 
+            ### Which file
+            - `Samiksha-Demo-*.apk` — try it without an account: officer and administrator journeys over a seeded directorate, with Samiksha AI answering live
+            - `Samiksha-Officer-*.apk` — the learner app for provisioned officers
+            - `Samiksha-Admin-*.apk` — the administrator app: dashboards, officers, publishing study material
+            - `Samiksha-Workspace-Setup-*.exe` — the Windows agent workspace
+
             ### Install
-            1. Download `${{ steps.artifact.outputs.path }}` below (${{ steps.artifact.outputs.size }})
+            1. Download the APK below
             2. On your Android phone, allow **Install unknown apps** for your browser or file manager
             3. Open the downloaded file and install
-            4. Tap **Explore the demo** to see the full journey — no account or network needed
 
             Minimum Android 7.0 (API 24).
 
@@ -232,6 +245,8 @@ jobs:
             - FSRS-6 spaced repetition, verified against the reference implementation
             - iGOT Karmayogi adapter built on the Sunbird ED contract
             - AI-vetted YouTube tutoring via the official embedded player
+            - Administrators publish PDFs, slides, videos and YouTube links to a department, choosing each officer
+            - Samiksha AI behind the mascot: officers clear doubts; administrators get data and delegate tasks they confirm
 
   desktop:
     name: Build Windows desktop app

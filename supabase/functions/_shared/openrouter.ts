@@ -80,19 +80,40 @@ class UpstreamError extends Error {
   }
 }
 
+let cachedKey: string | null = null;
+
+/**
+ * The OpenRouter key, from the function's secrets or else from Vault.
+ *
+ * `supabase secrets set` needs the CLI and an access token on whichever
+ * machine deploys; Vault can be filled from the dashboard's SQL editor. Either
+ * way the key stays server-side — get_service_secret() is granted to the
+ * service role only, so nothing holding the anon key can read it.
+ */
+export async function openRouterKey(): Promise<string> {
+  if (cachedKey) return cachedKey;
+  const fromEnv = Deno.env.get("OPENROUTER_API_KEY");
+  if (fromEnv) return (cachedKey = fromEnv);
+  try {
+    const { adminClient } = await import("./supabase.ts");
+    const { data } = await adminClient().rpc("get_service_secret", { p_name: "openrouter_api_key" });
+    if (typeof data === "string" && data) return (cachedKey = data);
+  } catch (e) {
+    console.error("[openrouter] vault lookup failed", e);
+  }
+  throw new UpstreamError(
+    "OPENROUTER_API_KEY is not configured on the server. Set it with `supabase secrets set` or store it in Vault as openrouter_api_key.",
+    500,
+    false,
+  );
+}
+
 async function callOnce(
   model: string,
   opts: ChatOptions,
   signal: AbortSignal,
 ): Promise<{ raw: any; latencyMs: number }> {
-  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-  if (!apiKey) {
-    throw new UpstreamError(
-      "OPENROUTER_API_KEY is not configured on the server. Add it via `supabase secrets set`.",
-      500,
-      false,
-    );
-  }
+  const apiKey = await openRouterKey();
 
   const body: Record<string, unknown> = {
     model,
@@ -259,4 +280,91 @@ export async function logGeneration(
   } catch (e) {
     console.error("[audit] failed to log generation", e);
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TOOL CALLING
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ToolDef {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
+export interface ToolCall {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+}
+
+// deno-lint-ignore no-explicit-any
+export type RawMessage = Record<string, any>;
+
+/**
+ * One chat completion that may answer with tool calls instead of text.
+ * The caller owns the loop, because what a tool is allowed to do — and whether
+ * a person has to approve it first — is a product decision, not a transport one.
+ */
+export async function chatWithTools(opts: {
+  messages: RawMessage[];
+  tools: ToolDef[];
+  temperature?: number;
+  maxTokens?: number;
+  timeoutMs?: number;
+}): Promise<{ message: { content: string | null; tool_calls?: ToolCall[] }; model: string;
+             promptTokens: number; completionTokens: number; costUsd: number; latencyMs: number }> {
+  const apiKey = await openRouterKey();
+  const model = activeModel();
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 60_000);
+    const started = Date.now();
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://github.com/adryxportfolio/sih2026",
+          "X-Title": "Samiksha - MoSPI Capacity Building",
+        },
+        body: JSON.stringify({
+          model,
+          messages: opts.messages,
+          tools: opts.tools.length ? opts.tools : undefined,
+          tool_choice: opts.tools.length ? "auto" : undefined,
+          temperature: opts.temperature ?? 0.3,
+          max_tokens: opts.maxTokens ?? 2000,
+          usage: { include: true },
+        }),
+      });
+      clearTimeout(timer);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        const retryable = res.status === 429 || res.status >= 500;
+        throw new UpstreamError(`OpenRouter ${res.status}: ${text.slice(0, 300)}`, res.status, retryable);
+      }
+      const raw = await res.json();
+      const msg = raw?.choices?.[0]?.message ?? {};
+      const usage = raw?.usage ?? {};
+      return {
+        message: { content: msg.content ?? null, tool_calls: msg.tool_calls?.length ? msg.tool_calls : undefined },
+        model: raw?.model ?? model,
+        promptTokens: usage.prompt_tokens ?? 0,
+        completionTokens: usage.completion_tokens ?? 0,
+        costUsd: typeof usage.cost === "number" ? usage.cost : 0,
+        latencyMs: Date.now() - started,
+      };
+    } catch (err) {
+      clearTimeout(timer);
+      lastError = err;
+      const retryable = err instanceof UpstreamError ? err.retryable : (err as Error)?.name === "AbortError";
+      if (!retryable || attempt === 2) break;
+      await sleep(Math.min(4000, 500 * 2 ** attempt));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("OpenRouter call failed");
 }

@@ -14,13 +14,16 @@ export default function TabsLayout() {
   // "Hi, how can I help?" — an assistant that never has context gets ignored.
   const tip = useMemo<MascotTip | null>(() => {
     if (pathname.includes("insights")) {
-      return { text: "Your sampling gap is the one that would actually change a published estimate. Want me to explain design weights?", cta: "Explain it" };
+      return { text: "Your sampling gap is the one that would actually change a published estimate. Want me to explain design weights?", cta: "Explain it",
+               prompt: "Explain design weights in a two-stage sample with a small worked example." };
     }
     if (pathname.includes("path")) {
-      return { text: "Notice sampling appears three times, spread across six weeks? That spacing is deliberate — ask me why.", cta: "Ask why" };
+      return { text: "Notice sampling appears three times, spread across six weeks? That spacing is deliberate — ask me why.", cta: "Ask why",
+               prompt: "Why does my plan space the same topic out over several weeks instead of back to back?" };
     }
     if (pathname.includes("library")) {
-      return { text: "Upload a PDF and I'll turn it into a quiz, flashcards, and answer questions from it.", cta: "How it works" };
+      return { text: "Material from your department appears here. Ask me about any of it.", cta: "How it works",
+               prompt: "How can you help me with the study material my department assigned?" };
     }
     return null;
   }, [pathname]);
@@ -94,9 +97,17 @@ export default function TabsLayout() {
 
       <FloatingMascot
         tip={tip}
-        // The mascot is the hand-off point: tap it to delegate work to
-        // your agents. The tutor stays reachable from Today, Library and Insights.
-        onPress={() => router.push("/workspace")}
+        // Two different requests, one mascot: "help me understand this" goes to
+        // Samiksha AI, "do this for me" goes to the agent workspace.
+        menu={[
+          { icon: "chatbubble-ellipses", label: "Ask a question",
+            hint: "Clear a doubt with Samiksha AI", onPress: () => router.push("/assistant") },
+          { icon: "hardware-chip-outline", label: "Go to workspace",
+            hint: "Delegate work to your agents", onPress: () => router.push("/workspace") },
+        ]}
+        onPress={() => router.push(tip?.prompt
+          ? { pathname: "/assistant", params: { prompt: tip.prompt } }
+          : "/assistant")}
         bottom={Platform.OS === "ios" ? 104 : 84}
       />
     </View>

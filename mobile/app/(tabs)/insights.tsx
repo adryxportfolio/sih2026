@@ -237,7 +237,10 @@ export default function Insights() {
             size="sm"
             full
             style={{ marginTop: space.base }}
-            onPress={() => router.push("/tutor")}
+            onPress={() => router.push({
+              pathname: "/assistant",
+              params: { prompt: "Looking at my competency gaps, which should I fix first, and how do I start?" },
+            })}
           />
         </Card>
       </Animated.View>

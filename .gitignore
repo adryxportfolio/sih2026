@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# The desktop installer ships this template; it holds no values.
+!.env.images.example
 *.pem
 *.key
 *.keystore

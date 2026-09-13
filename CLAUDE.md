@@ -53,8 +53,10 @@ that script. Do not hand-edit `.env` networking values — four files have to
 agree about one address, and the script is what keeps them agreeing.
 
 ### Prerequisites
-Docker Desktop (**WSL2 backend**, 8 GB+), Node 22.22+/24+/26+, Ollama.
-The script checks these and says what is missing.
+Docker Desktop (**WSL2 backend**, 8 GB+), Node 22.22+/24+/26+, and an
+OpenRouter key in `workspace/.env`. The script checks these and says what is
+missing. Every agent run provisions a Docker computer first, so without Docker
+the workspace UI loads but agents never reply.
 
 ### Secrets
 Three git-ignored `.env` files. `.env` and `workspace/.env` must be copied from
@@ -79,19 +81,24 @@ pnpm android    # USB phone, developer mode on
 
 ## Model configuration
 
-Inference runs locally through Ollama — no API key, no per-token cost.
+One hosted model everywhere: DeepSeek V4 Flash through OpenRouter.
 
 ```
-PI_DEFAULT_PROVIDER=local
-PI_DEFAULT_MODEL=qwen3:1.7b
-SAMIKSHA_LOCAL_MODELS=qwen3:1.7b
-SAMIKSHA_LOCAL_MODELS_URL=http://127.0.0.1:11434/v1
+# workspace/.env — the agent workspace
+PI_DEFAULT_PROVIDER=openrouter
+PI_DEFAULT_MODEL=deepseek/deepseek-v4-flash
+OPENROUTER_API_KEY=sk-or-...
 ```
 
-`ollama serve` must be running. Check with `curl http://127.0.0.1:11434/v1/models`.
+Supabase Edge Functions (Samiksha AI behind the mascot, quiz generation) read
+the key from the function secret `OPENROUTER_API_KEY` or, failing that, from
+Vault as `openrouter_api_key` via `get_service_secret()` — granted to the
+service role only. The live project uses Vault, so no CLI is needed to rotate
+it: `select vault.update_secret(id, '<new key>') from vault.secrets where name = 'openrouter_api_key';`
 
-To switch to a hosted model instead, set `PI_DEFAULT_PROVIDER=openrouter`,
-`PI_DEFAULT_MODEL=deepseek/deepseek-v4-flash` and `OPENROUTER_API_KEY`.
+Local inference through Ollama still works (`PI_DEFAULT_PROVIDER=local`,
+`SAMIKSHA_LOCAL_MODELS=qwen3:1.7b`); `scripts/start.mjs` only checks for
+Ollama when the provider is local.
 
 **Model names must not appear in the UI.** Officers see "Samiksha AI"; the
 engine is an operational detail that changes with deployment.
@@ -134,6 +141,25 @@ engine is an operational detail that changes with deployment.
 Verified working: the Supabase identity bridge, the competency loop in both
 directions, agent provisioning, adaptive assessment, FSRS review, quiz flow with
 page citations, both dashboards.
+
+Samiksha AI (the mascot menu → "Ask a question"): the `assistant` Edge Function.
+Officers get a tutor that knows their gaps and assigned material. Administrators
+get an operator with read tools over the platform and action tools (publish or
+assign material, create / deactivate / reset an account) that return a proposed
+action the administrator must confirm. Demo sessions send their own dataset,
+never touch the database, and are rate-limited.
+
+Department study material: administrators publish PDFs, PPTX, DOCX, video (≤50 MB,
+private `materials` bucket) or YouTube / web links from the Materials tab to all
+departments or one, ticking individual officers. Recipients live in
+`material_assignments`; officers see them under Library → From your department.
+
+Three APKs from one codebase via `EXPO_PUBLIC_APP_VARIANT`: `learner`, `admin`,
+and `demo`, which opens on a choice of the two journeys with no sign-in form.
+
+Migration 0015 restored EXECUTE on the RLS helpers (`is_staff` and friends) for
+`authenticated`. 0011 had revoked it, which made every signed-in table read fail
+with "permission denied for function is_staff" — demo mode hid this.
 
 Configured but never executed: everything behind Docker — agent computers,
 browser, terminal, desktop, screen recording. There was no Docker on the

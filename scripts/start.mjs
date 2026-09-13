@@ -167,8 +167,12 @@ good("Synced client-safe values into mobile/.env");
 
 // ── 4. Model server ─────────────────────────────────────────────────────────
 step("Checking the model server");
-const modelId = ws.PI_DEFAULT_MODEL || "qwen3:1.7b";
-try {
+const provider = ws.PI_DEFAULT_PROVIDER || "openrouter";
+const modelId = ws.PI_DEFAULT_MODEL || "deepseek/deepseek-v4-flash";
+if (provider === "openrouter") {
+  if (ws.OPENROUTER_API_KEY) good(`Hosted model via OpenRouter (${modelId})`);
+  else warn("PI_DEFAULT_PROVIDER=openrouter but OPENROUTER_API_KEY is empty in workspace/.env.");
+} else try {
   const res = await fetch("http://127.0.0.1:11434/v1/models", { signal: AbortSignal.timeout(2500) });
   const body = await res.json();
   const ids = (body.data ?? []).map((m) => m.id);

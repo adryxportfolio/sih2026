@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNowStrict } from "date-fns";
 import { View, Pressable, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -11,6 +13,7 @@ import {
 import { DEMO_QUIZ, DEMO_VIDEOS, DEMO_CARDS } from "../../src/lib/demo";
 import { notify } from "../../src/lib/dialog";
 import { useSession } from "../../src/store/session";
+import { listAssigned, openMaterial, KIND_META, type AssignedMaterial } from "../../src/lib/materials";
 
 type Tab = "materials" | "quizzes" | "videos" | "decks";
 
@@ -29,6 +32,16 @@ export default function Library() {
   const { isDemo } = useSession();
   const [tab, setTab] = useState<Tab>("materials");
   const [uploading, setUploading] = useState(false);
+
+  const assigned = useQuery({
+    queryKey: ["materials", "assigned", isDemo],
+    queryFn: () => listAssigned(isDemo),
+  });
+
+  const open = async (m: AssignedMaterial) => {
+    await openMaterial(isDemo, m, (href) => router.push(href as never));
+    assigned.refetch();
+  };
 
   const pickFile = async () => {
     try {
@@ -57,6 +70,72 @@ export default function Library() {
       <View style={{ marginTop: space.sm, marginBottom: space.lg }}>
         <Txt variant="overline" tone="primary">YOUR CONTENT</Txt>
         <Txt variant="h1" style={{ marginTop: 4 }}>Library</Txt>
+      </View>
+
+      {/* From the department */}
+      <View style={{ marginBottom: space.lg }}>
+        <Row justify="space-between" style={{ marginBottom: space.md }}>
+          <Txt variant="overline" tone="muted">FROM YOUR DEPARTMENT</Txt>
+          {assigned.data?.length ? (
+            <Txt variant="caption" tone="subtle">
+              {assigned.data.filter((m) => !m.opened_at).length} new
+            </Txt>
+          ) : null}
+        </Row>
+        {assigned.isLoading ? <ActivityIndicator color={t.color.text} style={{ alignSelf: "flex-start" }} /> : null}
+        {assigned.error ? (
+          <Txt variant="small" tone="muted">Could not load assigned material: {(assigned.error as Error).message}</Txt>
+        ) : null}
+        {assigned.data && !assigned.data.length ? (
+          <Card level={1} tone="sunken">
+            <Txt variant="small" tone="muted">
+              Nothing assigned yet. When your administrator publishes material to your department it appears here.
+            </Txt>
+          </Card>
+        ) : null}
+        <View style={{ gap: space.md }}>
+          {(assigned.data ?? []).map((m, i) => {
+            const meta = KIND_META[m.kind] ?? KIND_META.document;
+            return (
+              <Animated.View key={m.id} entering={FadeInDown.delay(i * 40).duration(300)}>
+                <Card level={1} onPress={() => open(m)}>
+                  <Row gap={space.md} align="flex-start">
+                    <View style={{
+                      width: 42, height: 42, borderRadius: radius.sm,
+                      backgroundColor: m.opened_at ? t.color.bgSunken : t.color.primary,
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Ionicons name={meta.icon as keyof typeof Ionicons.glyphMap} size={20}
+                                color={m.opened_at ? t.color.text : t.color.onPrimary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Txt variant="bodyMd" numberOfLines={2}>{m.title}</Txt>
+                      <Row gap={space.sm} wrap style={{ marginTop: 4 }}>
+                        <Txt variant="overline" tone="subtle">{meta.label}</Txt>
+                        <Txt variant="overline" tone="subtle">
+                          · {formatDistanceToNowStrict(new Date(m.assigned_at), { addSuffix: true }).toUpperCase()}
+                        </Txt>
+                      </Row>
+                    </View>
+                    {!m.opened_at ? <Badge label="NEW" tone="primary" size="sm" /> : null}
+                  </Row>
+                  {m.description ? (
+                    <Txt variant="small" tone="muted" style={{ marginTop: space.sm }}>{m.description}</Txt>
+                  ) : null}
+                  <Row gap={space.sm} style={{ marginTop: space.md }}>
+                    <Button label="Open" size="sm" icon={m.kind === "youtube" || m.kind === "video" ? "play" : "open-outline"}
+                            onPress={() => open(m)} />
+                    <Button label="Ask AI" size="sm" variant="secondary" icon="chatbubble-ellipses-outline"
+                            onPress={() => router.push({
+                              pathname: "/assistant",
+                              params: { prompt: `Help me study "${m.title}". What are the key ideas I should take from it?` },
+                            })} />
+                  </Row>
+                </Card>
+              </Animated.View>
+            );
+          })}
+        </View>
       </View>
 
       {/* Upload CTA */}
@@ -137,7 +216,10 @@ export default function Library() {
                   <Button label="Cards" size="sm" variant="secondary" icon="albums"
                           onPress={() => router.push("/review")} />
                   <Button label="Ask" size="sm" variant="ghost" icon="chatbubbles"
-                          onPress={() => router.push("/tutor")} />
+                          onPress={() => router.push({
+                            pathname: "/assistant",
+                            params: { prompt: `I'm studying "${m.title}". Quiz me on one key idea from it.` },
+                          })} />
                 </Row>
               </Card>
             </Animated.View>

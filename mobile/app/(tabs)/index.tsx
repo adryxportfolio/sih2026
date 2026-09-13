@@ -288,8 +288,8 @@ export default function Today() {
         <Row gap={space.md} wrap>
           <QuickAction icon="cloud-upload" label="Upload material"
                        sub="Generate a quiz" onPress={() => router.push("/(tabs)/library")} />
-          <QuickAction icon="chatbubbles" label="Ask the tutor"
-                       sub="Grounded in your notes" onPress={() => router.push("/tutor")} />
+          <QuickAction icon="chatbubbles" label="Ask a question"
+                       sub="Clear a doubt with Samiksha AI" onPress={() => router.push("/assistant")} />
           <QuickAction icon="git-branch" label="Adaptive test"
                        sub="Measures you in ~10 Qs" onPress={() => router.push("/assessment")} />
           <QuickAction icon="school" label="iGOT courses"

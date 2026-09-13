@@ -2,7 +2,10 @@
  * Floating mascot.
  *
  * A persistent, tappable assistant that sits above the tab bar on every
- * screen and routes into the AI tutor.
+ * screen. Tapping it opens a short menu — ask Samiksha AI a question, or go to
+ * the agent workspace — because "help me understand" and "do this for me" are
+ * different requests and the officer should not have to guess which one the
+ * mascot means.
  *
  * Rendering note: the source clip has a solid black background and no alpha
  * channel. Rather than fight that with chroma keying, the mascot sits inside
@@ -29,17 +32,30 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export interface MascotTip {
   text: string;
   cta?: string;
+  /** Question to open Samiksha AI with when the call-to-action is tapped. */
+  prompt?: string;
+}
+
+export interface MascotMenuItem {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  hint?: string;
+  onPress: () => void;
 }
 
 export function FloatingMascot({
   onPress,
+  menu,
   tip,
   bottom = 78,
   right = 16,
   size = 62,
   hidden,
 }: {
+  /** Tip call-to-action, and the tap handler when there is no menu. */
   onPress?: () => void;
+  /** Choices shown when the mascot itself is tapped. */
+  menu?: MascotMenuItem[];
   tip?: MascotTip | null;
   bottom?: number;
   right?: number;
@@ -48,6 +64,7 @@ export function FloatingMascot({
 }) {
   const t = useTheme();
   const [showTip, setShowTip] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const bob = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -101,13 +118,81 @@ export function FloatingMascot({
     onPress?.();
   }, [onPress]);
 
+  const tapMascot = useCallback(() => {
+    if (!menu?.length) { press(); return; }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setShowTip(false);
+    setMenuOpen((open) => !open);
+  }, [menu, press]);
+
   if (hidden) return null;
 
   return (
+    <>
+    {menuOpen ? (
+      <Pressable
+        accessibilityLabel="Close menu"
+        onPress={() => setMenuOpen(false)}
+        style={[StyleSheet.absoluteFill, { backgroundColor: t.color.bgOverlay }]}
+      />
+    ) : null}
     <View
       pointerEvents="box-none"
       style={{ position: "absolute", right, bottom, alignItems: "flex-end" }}
     >
+      {/* Menu */}
+      {menuOpen && menu?.length ? (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(140)}
+          style={{
+            width: 264,
+            marginBottom: space.sm,
+            backgroundColor: t.color.bgElevated,
+            borderRadius: radius.lg,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: t.color.borderStrong,
+            overflow: "hidden",
+            ...elevation(4, t.color.shadow),
+          }}
+        >
+          {menu.map((item, i) => (
+            <Pressable
+              key={item.label}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                setMenuOpen(false);
+                item.onPress();
+              }}
+              style={({ pressed }) => ({
+                flexDirection: "row", alignItems: "center", gap: space.md,
+                paddingVertical: space.md, paddingHorizontal: space.base,
+                backgroundColor: pressed ? t.color.bgSunken : "transparent",
+                borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                borderTopColor: t.color.border,
+              })}
+            >
+              <View style={{
+                width: 36, height: 36, borderRadius: 18,
+                backgroundColor: i === 0 ? t.color.primary : t.color.bgSunken,
+                alignItems: "center", justifyContent: "center",
+              }}>
+                <Ionicons name={item.icon} size={17} color={i === 0 ? t.color.onPrimary : t.color.text} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ ...typo.bodyMd, color: t.color.text }}>{item.label}</Text>
+                {item.hint ? (
+                  <Text style={{ ...typo.caption, color: t.color.textMuted, marginTop: 1 }}>{item.hint}</Text>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={15} color={t.color.textSubtle} />
+            </Pressable>
+          ))}
+        </Animated.View>
+      ) : null}
+
       {/* Speech bubble */}
       {showTip && tip ? (
         <Animated.View
@@ -161,11 +246,12 @@ export function FloatingMascot({
           ]}
         />
         <AnimatedPressable
-          onPress={press}
+          onPress={tapMascot}
           onPressIn={() => { scale.value = withSpring(0.9, motion.springSnappy); }}
           onPressOut={() => { scale.value = withSpring(1, motion.springSnappy); }}
           accessibilityRole="button"
-          accessibilityLabel="Open AI tutor"
+          accessibilityLabel={menu?.length ? "Open Samiksha AI menu" : "Open AI tutor"}
+          accessibilityState={{ expanded: menuOpen }}
           style={[
             {
               width: size, height: size, borderRadius: size / 2,
@@ -191,5 +277,6 @@ export function FloatingMascot({
         </AnimatedPressable>
       </View>
     </View>
+    </>
   );
 }

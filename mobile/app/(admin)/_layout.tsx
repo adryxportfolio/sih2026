@@ -24,10 +24,16 @@ export default function AdminLayout() {
 
   const tip = useMemo<MascotTip | null>(() => {
     if (pathname.includes("officers")) {
-      return { text: "Four officers have critical gaps in Data Privacy. Want the DPDP cohort list?", cta: "Show me" };
+      return { text: "Four officers have critical gaps in Data Privacy. Want the DPDP cohort list?", cta: "Show me",
+               prompt: "Which officers have critical gaps, and in which competencies?" };
+    }
+    if (pathname.includes("materials")) {
+      return { text: "I can tell you who has opened what you published — or publish a link for you.", cta: "Ask me",
+               prompt: "Which study materials have been published, and how many officers have opened each?" };
     }
     if (pathname.includes("live")) {
-      return { text: "Three officers are studying right now. Field Units are at 41% completion — the lowest of any office.", cta: "Open Field Units" };
+      return { text: "Want a quick read on who is studying right now and who has gone quiet?", cta: "Ask about it",
+               prompt: "Who is studying right now, and who has gone quiet this week?" };
     }
     return null;
   }, [pathname]);
@@ -63,6 +69,12 @@ export default function AdminLayout() {
             <AdminTabIcon name={focused ? "people" : "people-outline"} color={color} focused={focused} />
           ),
         }} />
+        <Tabs.Screen name="materials" options={{
+          title: "MATERIALS",
+          tabBarIcon: ({ color, focused }) => (
+            <AdminTabIcon name={focused ? "library" : "library-outline"} color={color} focused={focused} />
+          ),
+        }} />
         <Tabs.Screen name="live" options={{
           title: "LIVE",
           tabBarIcon: ({ color, focused }) => (
@@ -81,9 +93,17 @@ export default function AdminLayout() {
 
       <FloatingMascot
         tip={tip}
-        // The mascot is the hand-off point: tap it to delegate work to
-        // your agents. The tutor stays reachable from Today, Library and Insights.
-        onPress={() => router.push("/workspace")}
+        // For an administrator Samiksha AI is an operator: it answers from the
+        // platform's data and carries out tasks once they confirm them.
+        menu={[
+          { icon: "sparkles", label: "Ask Samiksha AI",
+            hint: "Get data or hand over a task", onPress: () => router.push("/assistant") },
+          { icon: "hardware-chip-outline", label: "Go to workspace",
+            hint: "Your agent team", onPress: () => router.push("/workspace") },
+        ]}
+        onPress={() => router.push(tip?.prompt
+          ? { pathname: "/assistant", params: { prompt: tip.prompt } }
+          : "/assistant")}
         bottom={Platform.OS === "ios" ? 104 : 84}
       />
     </View>

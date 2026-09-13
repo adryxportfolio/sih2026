@@ -12,9 +12,18 @@
  *
  *   EXPO_PUBLIC_APP_VARIANT=learner  (default)  → Samiksha
  *   EXPO_PUBLIC_APP_VARIANT=admin               → Samiksha Admin
+ *   EXPO_PUBLIC_APP_VARIANT=demo                → Samiksha Demo
+ *
+ * The demo build opens straight onto a choice of officer or administrator
+ * journeys over seeded data, so a judge can install it and see both halves
+ * without being issued an account.
  */
-const VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT === "admin" ? "admin" : "learner";
+const VARIANT = ["admin", "demo"].includes(process.env.EXPO_PUBLIC_APP_VARIANT)
+  ? process.env.EXPO_PUBLIC_APP_VARIANT
+  : "learner";
 const isAdmin = VARIANT === "admin";
+const isDemo = VARIANT === "demo";
+const suffix = isAdmin ? ".admin" : isDemo ? ".demo" : "";
 
 // Monochrome throughout. The splash and adaptive-icon backgrounds are the first
 // and last thing a user sees, so a stray brand colour here undoes the palette
@@ -23,12 +32,12 @@ const INK = "#000000";
 
 module.exports = {
   expo: {
-    name: isAdmin ? "Samiksha Admin" : "Samiksha",
-    slug: isAdmin ? "samiksha-admin" : "samiksha",
-    version: "1.0.0",
+    name: isAdmin ? "Samiksha Admin" : isDemo ? "Samiksha Demo" : "Samiksha",
+    slug: isAdmin ? "samiksha-admin" : isDemo ? "samiksha-demo" : "samiksha",
+    version: "1.1.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
-    scheme: isAdmin ? "samiksha-admin" : "samiksha",
+    scheme: isAdmin ? "samiksha-admin" : isDemo ? "samiksha-demo" : "samiksha",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     splash: {
@@ -38,13 +47,13 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: isAdmin ? "in.gov.mospi.samiksha.admin" : "in.gov.mospi.samiksha",
+      bundleIdentifier: `in.gov.mospi.samiksha${suffix}`,
     },
     android: {
       // Distinct package ids so both builds can sit on one device during a
       // demo without the installer treating the second as an upgrade.
-      package: isAdmin ? "in.gov.mospi.samiksha.admin" : "in.gov.mospi.samiksha",
-      versionCode: 1,
+      package: `in.gov.mospi.samiksha${suffix}`,
+      versionCode: 2,
       adaptiveIcon: {
         backgroundColor: INK,
         foregroundImage: "./assets/android-icon-foreground.png",

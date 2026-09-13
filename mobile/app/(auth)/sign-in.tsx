@@ -11,7 +11,7 @@ import { useTheme, space, radius, type as typo, elevation } from "../../src/them
 import { Txt, Row, Button, Card, Divider, useOnInverse } from "../../src/components/ui";
 import { useSession } from "../../src/store/session";
 import { isSupabaseConfigured } from "../../src/lib/supabase";
-import { IS_ADMIN_BUILD } from "../../src/lib/variant";
+import { IS_ADMIN_BUILD, IS_DEMO_BUILD } from "../../src/lib/variant";
 
 export default function SignIn() {
   const t = useTheme();
@@ -122,6 +122,18 @@ export default function SignIn() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {IS_DEMO_BUILD ? (
+          <Animated.View entering={FadeInDown.delay(120).duration(420)}>
+            <Card level={3} style={{ padding: space.lg, borderRadius: radius.xl }}>
+              <Txt variant="h2">Explore Samiksha</Txt>
+              <Txt variant="small" tone="muted" style={{ marginTop: 4 }}>
+                Two journeys over a seeded directorate — no account needed. Samiksha AI answers
+                live in both, and material you publish as the administrator appears in the officer's
+                Library on this phone.
+              </Txt>
+            </Card>
+          </Animated.View>
+          ) : (
           <Animated.View entering={FadeInDown.delay(120).duration(420)}>
             <Card level={3} style={{ padding: space.lg, borderRadius: radius.xl }}>
               <Txt variant="h2">{mode === "in" ? "Welcome back" : "Create your account"}</Txt>
@@ -222,14 +234,17 @@ export default function SignIn() {
               </Pressable>
             </Card>
           </Animated.View>
+          )}
 
           {/* Demo entry — also the offline fallback for live judging */}
           <Animated.View entering={FadeInDown.delay(220).duration(420)} style={{ marginTop: space.lg }}>
+            {!IS_DEMO_BUILD ? (
             <Row gap={space.md} style={{ marginBottom: space.md }}>
               <Divider style={{ flex: 1 }} />
               <Txt variant="overline" tone="subtle">OR</Txt>
               <Divider style={{ flex: 1 }} />
             </Row>
+            ) : null}
 
             {!IS_ADMIN_BUILD ? (
             <Card
@@ -248,7 +263,7 @@ export default function SignIn() {
                 <View style={{ flex: 1 }}>
                   <Txt variant="bodyMd">Officer demo</Txt>
                   <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                    The learner journey · works offline
+                    Learning plan · assigned material · ask Samiksha AI
                   </Txt>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={t.color.textMuted} />
@@ -276,14 +291,14 @@ export default function SignIn() {
                 <View style={{ flex: 1 }}>
                   <Txt variant="bodyMd">Administrator demo</Txt>
                   <Txt variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                    Workforce intelligence · live board · officer records
+                    Workforce data · publish material · AI operator
                   </Txt>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={t.color.textMuted} />
               </Row>
             </Card>
 
-            {!isSupabaseConfigured ? (
+            {!isSupabaseConfigured && !IS_DEMO_BUILD ? (
               <Row gap={space.sm} align="flex-start" style={{
                 marginTop: space.md, padding: space.md,
                 borderRadius: radius.sm, backgroundColor: t.color.warningSoft,
