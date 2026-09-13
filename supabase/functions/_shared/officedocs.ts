@@ -84,9 +84,10 @@ export function extractPptx(bytes: Uint8Array): OfficeDoc {
       if (/^\d+$/.test(notes)) notes = "";
     }
 
+    // The slide marker lets generated questions cite "slide 12".
     const body = paras.join("\n\n");
     pages.push(
-      [body, notes ? `[Speaker notes] ${notes}` : ""].filter(Boolean).join("\n\n"),
+      [`[Slide ${n}]`, body, notes ? `[Speaker notes] ${notes}` : ""].filter(Boolean).join("\n\n"),
     );
   }
 

@@ -24,7 +24,7 @@ export default function VideoScreen() {
   const t = useTheme();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const { id, title, material } = useLocalSearchParams<{ id: string; title?: string; material?: string }>();
   // A curated tutoring video carries its quality rationale; one an
   // administrator assigned is shown as-is.
   const curated = DEMO_VIDEOS.find((x) => x.youtube_id === id);
@@ -102,6 +102,20 @@ export default function VideoScreen() {
                   params: { prompt: `I just watched "${heading}". Check my understanding with one question on its key idea.` },
                 })} />
       </Row>
+
+      {material ? (
+        <Card level={1} tone="sunken" style={{ marginTop: space.base }}>
+          <Txt variant="overline" tone="muted">PRACTISE ON THIS VIDEO</Txt>
+          <Row gap={space.sm} style={{ marginTop: space.sm }}>
+            {([["quiz", "Quiz", "help-circle-outline"], ["flashcards", "Flashcards", "albums-outline"],
+               ["mock", "Mock test", "timer-outline"]] as const).map(([mode, label, icon]) => (
+              <Button key={mode} label={label} icon={icon} size="sm" variant={mode === "quiz" ? "primary" : "secondary"}
+                      style={{ flex: 1 }}
+                      onPress={() => router.push({ pathname: "/practice", params: { id: String(material), mode } })} />
+            ))}
+          </Row>
+        </Card>
+      ) : null}
 
       <Card level={1} style={{ marginTop: space.md }}>
         <Txt variant="caption" tone="subtle" style={{ lineHeight: 18 }}>

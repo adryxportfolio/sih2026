@@ -9,15 +9,18 @@ import Constants from "expo-constants";
  * installs the administrator build still gets the officer experience, and
  * nobody becomes an administrator by choosing a different APK.
  */
-export type AppVariant = "learner" | "admin" | "demo";
+export type AppVariant = "learner" | "admin" | "demo" | "demo-admin";
 
-const fromEnv = process.env.EXPO_PUBLIC_APP_VARIANT;
+const VARIANTS: AppVariant[] = ["learner", "admin", "demo", "demo-admin"];
+const fromEnv = process.env.EXPO_PUBLIC_APP_VARIANT as AppVariant | undefined;
+const fromConfig = (Constants.expoConfig?.extra as Record<string, unknown> | undefined)?.appVariant as AppVariant | undefined;
 
 export const APP_VARIANT: AppVariant =
-  ((Constants.expoConfig?.extra as Record<string, unknown> | undefined)?.appVariant as AppVariant) ??
-  (fromEnv === "admin" || fromEnv === "demo" ? fromEnv : "learner");
+  fromConfig && VARIANTS.includes(fromConfig) ? fromConfig
+  : fromEnv && VARIANTS.includes(fromEnv) ? fromEnv
+  : "learner";
 
-export const IS_ADMIN_BUILD = APP_VARIANT === "admin";
+export const IS_ADMIN_BUILD = APP_VARIANT === "admin" || APP_VARIANT === "demo-admin";
 
-/** The demo build opens on a choice of journeys over seeded data — no account needed. */
-export const IS_DEMO_BUILD = APP_VARIANT === "demo";
+/** Demo builds open straight into seeded data — no account needed. */
+export const IS_DEMO_BUILD = APP_VARIANT === "demo" || APP_VARIANT === "demo-admin";

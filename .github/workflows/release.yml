@@ -2,9 +2,10 @@ name: Release
 
 # Produces the three installable artifacts and attaches them to a GitHub
 # Release, so judges download and run them straight from the repo:
-#   Samiksha-Officer-<tag>.apk  — the learner app
-#   Samiksha-Admin-<tag>.apk    — the administrator app
-#   Samiksha-Demo-<tag>.apk     — both journeys over seeded data, no account
+#   Samiksha-Officer-<tag>.apk       — the learner app
+#   Samiksha-Admin-<tag>.apk         — the administrator app
+#   Samiksha-Officer-Demo-<tag>.apk  — officer journey over seeded data, no account
+#   Samiksha-Admin-Demo-<tag>.apk    — administrator journey over seeded data, no account
 #   Samiksha-Workspace-Setup-<tag>.exe — the desktop agent workspace
 #
 # Cost: nothing. GitHub Actions is free for public repositories, and the whole
@@ -34,7 +35,7 @@ jobs:
       # none.
       fail-fast: false
       matrix:
-        variant: [learner, admin, demo]
+        variant: [learner, admin, demo, demo-admin]
 
     steps:
       - name: Checkout
@@ -74,13 +75,22 @@ jobs:
       - name: Write client-safe env
         working-directory: mobile
         # Only EXPO_PUBLIC_* values reach the app. Server secrets (service role,
-        # OpenRouter, YouTube) live in Supabase Edge Function secrets and are
-        # deliberately absent here — they must never enter an APK.
+        # OpenRouter) live in Supabase and are deliberately absent here — they
+        # must never enter an APK.
+        #
+        # The URL and anon key are public by design: they are compiled into
+        # every APK anyway, and row-level security is what protects the data.
+        # Repository secrets override them; the defaults mean a fresh fork or a
+        # repo without secrets still builds an app that can reach Supabase.
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://bsmdsrtykagnukvchrdo.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzbWRzcnR5a2FnbnVrdmNocmRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwOTQ5NDYsImV4cCI6MjEwNDY3MDk0Nn0.JCSJjOaA0v8ka6jjHHh6m-esBSdz0tnVMJGOHxYSNAw' }}
+          WORKSPACE_URL: ${{ secrets.EXPO_PUBLIC_WORKSPACE_URL }}
         run: |
           cat > .env <<EOF
-          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          EXPO_PUBLIC_WORKSPACE_URL=${{ secrets.EXPO_PUBLIC_WORKSPACE_URL }}
+          EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          EXPO_PUBLIC_WORKSPACE_URL=$WORKSPACE_URL
           EXPO_PUBLIC_APP_VARIANT=${{ matrix.variant }}
           EOF
           echo "Wrote .env with $(wc -l < .env) client-safe vars"
@@ -198,7 +208,8 @@ jobs:
           TAG="${{ github.event.inputs.release_tag || github.ref_name }}"
           case "${{ matrix.variant }}" in
             admin) OUT="Samiksha-Admin-${TAG}.apk" ;;
-            demo)  OUT="Samiksha-Demo-${TAG}.apk" ;;
+            demo)       OUT="Samiksha-Officer-Demo-${TAG}.apk" ;;
+            demo-admin) OUT="Samiksha-Admin-Demo-${TAG}.apk" ;;
             *)     OUT="Samiksha-Officer-${TAG}.apk" ;;
           esac
           cp "$SRC" "$OUT"
@@ -227,9 +238,10 @@ jobs:
             **Smart India Hackathon 2026 · Problem Statement SIH26101**
 
             ### Which file
-            - `Samiksha-Demo-*.apk` — try it without an account: officer and administrator journeys over a seeded directorate, with Samiksha AI answering live
-            - `Samiksha-Officer-*.apk` — the learner app for provisioned officers
-            - `Samiksha-Admin-*.apk` — the administrator app: dashboards, officers, publishing study material
+            - `Samiksha-Officer-Demo-*.apk` — try the officer app without an account (seeded data, live Samiksha AI)
+            - `Samiksha-Admin-Demo-*.apk` — try the administrator app without an account
+            - `Samiksha-Officer-*.apk` — production learner app for provisioned officers
+            - `Samiksha-Admin-*.apk` — production administrator app: dashboards, officers, publishing study material
             - `Samiksha-Workspace-Setup-*.exe` — the Windows agent workspace
 
             ### Install
@@ -247,6 +259,7 @@ jobs:
             - AI-vetted YouTube tutoring via the official embedded player
             - Administrators publish PDFs, slides, videos and YouTube links to a department, choosing each officer
             - Samiksha AI behind the mascot: officers clear doubts; administrators get data and delegate tasks they confirm
+            - Quizzes, flashcards and timed mock tests written by Samiksha AI from any assigned material
 
   desktop:
     name: Build Windows desktop app

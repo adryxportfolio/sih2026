@@ -122,18 +122,6 @@ export default function SignIn() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {IS_DEMO_BUILD ? (
-          <Animated.View entering={FadeInDown.delay(120).duration(420)}>
-            <Card level={3} style={{ padding: space.lg, borderRadius: radius.xl }}>
-              <Txt variant="h2">Explore Samiksha</Txt>
-              <Txt variant="small" tone="muted" style={{ marginTop: 4 }}>
-                Two journeys over a seeded directorate — no account needed. Samiksha AI answers
-                live in both, and material you publish as the administrator appears in the officer's
-                Library on this phone.
-              </Txt>
-            </Card>
-          </Animated.View>
-          ) : (
           <Animated.View entering={FadeInDown.delay(120).duration(420)}>
             <Card level={3} style={{ padding: space.lg, borderRadius: radius.xl }}>
               <Txt variant="h2">{mode === "in" ? "Welcome back" : "Create your account"}</Txt>
@@ -234,19 +222,16 @@ export default function SignIn() {
               </Pressable>
             </Card>
           </Animated.View>
-          )}
 
           {/* Demo entry — also the offline fallback for live judging */}
           <Animated.View entering={FadeInDown.delay(220).duration(420)} style={{ marginTop: space.lg }}>
-            {!IS_DEMO_BUILD ? (
             <Row gap={space.md} style={{ marginBottom: space.md }}>
               <Divider style={{ flex: 1 }} />
               <Txt variant="overline" tone="subtle">OR</Txt>
               <Divider style={{ flex: 1 }} />
             </Row>
-            ) : null}
 
-            {!IS_ADMIN_BUILD ? (
+            {!IS_ADMIN_BUILD || IS_DEMO_BUILD ? (
             <Card
               level={1}
               tone="primary"
@@ -276,7 +261,7 @@ export default function SignIn() {
               tone={IS_ADMIN_BUILD ? "primary" : undefined}
               onPress={() => goDemo(true)}
               style={{
-                marginTop: IS_ADMIN_BUILD ? 0 : space.md,
+                marginTop: IS_ADMIN_BUILD && !IS_DEMO_BUILD ? 0 : space.md,
                 borderStyle: "dashed", borderWidth: 1.5, borderColor: t.color.borderStrong,
               }}
             >
@@ -298,7 +283,7 @@ export default function SignIn() {
               </Row>
             </Card>
 
-            {!isSupabaseConfigured && !IS_DEMO_BUILD ? (
+            {!isSupabaseConfigured ? (
               <Row gap={space.sm} align="flex-start" style={{
                 marginTop: space.md, padding: space.md,
                 borderRadius: radius.sm, backgroundColor: t.color.warningSoft,

@@ -417,7 +417,7 @@ export async function openMaterial(
   markOpened(isDemo, m.id).catch(() => {});
 
   if (m.kind === "youtube" && m.youtube_id) {
-    push(`/video/${m.youtube_id}?title=${encodeURIComponent(m.title)}`);
+    push(`/video/${m.youtube_id}?title=${encodeURIComponent(m.title)}&material=${encodeURIComponent(m.id)}`);
     return;
   }
   if (m.external_url) {

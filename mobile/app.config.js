@@ -10,20 +10,26 @@
  * still decides what a given account may read, so installing the admin build
  * does not make anyone an administrator.
  *
- *   EXPO_PUBLIC_APP_VARIANT=learner  (default)  → Samiksha
- *   EXPO_PUBLIC_APP_VARIANT=admin               → Samiksha Admin
- *   EXPO_PUBLIC_APP_VARIANT=demo                → Samiksha Demo
+ *   EXPO_PUBLIC_APP_VARIANT=learner     (default)  → Samiksha
+ *   EXPO_PUBLIC_APP_VARIANT=admin                  → Samiksha Admin
+ *   EXPO_PUBLIC_APP_VARIANT=demo                   → Samiksha Demo        (officer journey, seeded)
+ *   EXPO_PUBLIC_APP_VARIANT=demo-admin             → Samiksha Admin Demo  (administrator journey, seeded)
  *
- * The demo build opens straight onto a choice of officer or administrator
- * journeys over seeded data, so a judge can install it and see both halves
+ * The demo builds open straight into their journey over seeded data — the same
+ * experience as the browser demo — so a judge can install one and use it
  * without being issued an account.
  */
-const VARIANT = ["admin", "demo"].includes(process.env.EXPO_PUBLIC_APP_VARIANT)
+const VARIANTS = ["learner", "admin", "demo", "demo-admin"];
+const VARIANT = VARIANTS.includes(process.env.EXPO_PUBLIC_APP_VARIANT)
   ? process.env.EXPO_PUBLIC_APP_VARIANT
   : "learner";
-const isAdmin = VARIANT === "admin";
-const isDemo = VARIANT === "demo";
-const suffix = isAdmin ? ".admin" : isDemo ? ".demo" : "";
+
+const IDENTITY = {
+  learner:      { name: "Samiksha",            slug: "samiksha",            suffix: "" },
+  admin:        { name: "Samiksha Admin",      slug: "samiksha-admin",      suffix: ".admin" },
+  demo:         { name: "Samiksha Demo",       slug: "samiksha-demo",       suffix: ".demo" },
+  "demo-admin": { name: "Samiksha Admin Demo", slug: "samiksha-admin-demo", suffix: ".admindemo" },
+}[VARIANT];
 
 // Monochrome throughout. The splash and adaptive-icon backgrounds are the first
 // and last thing a user sees, so a stray brand colour here undoes the palette
@@ -32,12 +38,12 @@ const INK = "#000000";
 
 module.exports = {
   expo: {
-    name: isAdmin ? "Samiksha Admin" : isDemo ? "Samiksha Demo" : "Samiksha",
-    slug: isAdmin ? "samiksha-admin" : isDemo ? "samiksha-demo" : "samiksha",
-    version: "1.1.0",
+    name: IDENTITY.name,
+    slug: IDENTITY.slug,
+    version: "1.2.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
-    scheme: isAdmin ? "samiksha-admin" : isDemo ? "samiksha-demo" : "samiksha",
+    scheme: IDENTITY.slug,
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     splash: {
@@ -47,13 +53,13 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: `in.gov.mospi.samiksha${suffix}`,
+      bundleIdentifier: `in.gov.mospi.samiksha${IDENTITY.suffix}`,
     },
     android: {
       // Distinct package ids so both builds can sit on one device during a
       // demo without the installer treating the second as an upgrade.
-      package: `in.gov.mospi.samiksha${suffix}`,
-      versionCode: 2,
+      package: `in.gov.mospi.samiksha${IDENTITY.suffix}`,
+      versionCode: 3,
       adaptiveIcon: {
         backgroundColor: INK,
         foregroundImage: "./assets/android-icon-foreground.png",

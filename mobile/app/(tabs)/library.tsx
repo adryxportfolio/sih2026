@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNowStrict } from "date-fns";
-import { View, Pressable, ActivityIndicator } from "react-native";
+import { View, Pressable, ActivityIndicator, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -131,6 +131,7 @@ export default function Library() {
                               params: { prompt: `Help me study "${m.title}". What are the key ideas I should take from it?` },
                             })} />
                   </Row>
+                  <PractiseRow materialId={m.id} />
                 </Card>
               </Animated.View>
             );
@@ -314,5 +315,26 @@ export default function Library() {
         </View>
       ) : null}
     </Screen>
+  );
+}
+
+/** Samiksha AI writes practice from the material itself. */
+function PractiseRow({ materialId }: { materialId: string }) {
+  const t = useTheme();
+  const router = useRouter();
+  const go = (mode: "quiz" | "flashcards" | "mock") =>
+    router.push({ pathname: "/practice", params: { id: materialId, mode } });
+  return (
+    <View style={{
+      marginTop: space.md, paddingTop: space.md,
+      borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.color.border,
+    }}>
+      <Txt variant="overline" tone="subtle" style={{ marginBottom: space.sm }}>PRACTISE WITH SAMIKSHA AI</Txt>
+      <Row gap={space.sm} wrap>
+        <Chip label="Quiz" icon="help-circle-outline" onPress={() => go("quiz")} />
+        <Chip label="Flashcards" icon="albums-outline" onPress={() => go("flashcards")} />
+        <Chip label="Mock test" icon="timer-outline" onPress={() => go("mock")} />
+      </Row>
+    </View>
   );
 }

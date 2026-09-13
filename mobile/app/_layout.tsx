@@ -50,6 +50,7 @@ function RootNavigator() {
         <Stack.Screen name="tutor" options={{ animation: "slide_from_bottom" }} />
         <Stack.Screen name="assistant" options={{ animation: "slide_from_bottom" }} />
         <Stack.Screen name="publish-material" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="practice" options={{ animation: "slide_from_bottom", gestureEnabled: false }} />
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
       </Stack>
     </>

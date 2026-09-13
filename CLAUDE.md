@@ -154,8 +154,25 @@ private `materials` bucket) or YouTube / web links from the Materials tab to all
 departments or one, ticking individual officers. Recipients live in
 `material_assignments`; officers see them under Library → From your department.
 
-Three APKs from one codebase via `EXPO_PUBLIC_APP_VARIANT`: `learner`, `admin`,
-and `demo`, which opens on a choice of the two journeys with no sign-in form.
+Practice from any assigned material (Library card → Quiz / Flashcards / Mock test,
+or the video screen): the `study` Edge Function. It reads PDF, PPTX and DOCX
+text itself and caches it on the material. YouTube blocks cloud data centres, so
+the phone fetches the video's description and sends it as `source_text`; a
+browser only gets the title (oEmbed), and the screen says "On the topic" when
+that is all there was. Mock tests are three hedged 5-question batches — single
+long calls stalled past Supabase's 150 s limit. Do not set
+`reasoning: { enabled: false }` on OpenRouter for this model: it routes to a
+provider that took over five minutes.
+
+Onboarding is one screen (role + daily goal); department and years of service
+come from provisioning.
+
+Four APKs from one codebase via `EXPO_PUBLIC_APP_VARIANT`: `learner`, `admin`,
+`demo` (officer journey) and `demo-admin`. Demo builds open straight into their
+journey the first time; after sign-out they show the same sign-in screen as the
+browser demo. The release workflow falls back to the project's public URL and
+anon key when repository secrets are absent — without them v1.0.0 shipped APKs
+that could not reach Supabase at all.
 
 Migration 0015 restored EXECUTE on the RLS helpers (`is_staff` and friends) for
 `authenticated`. 0011 had revoked it, which made every signed-in table read fail
