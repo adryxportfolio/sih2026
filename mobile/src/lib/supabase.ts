@@ -4,18 +4,22 @@ import { createClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 
 /**
- * Env resolution: EXPO_PUBLIC_* vars are inlined at build time, but reading
- * through expo-constants as a fallback keeps things working when the app is
- * launched from a prebuilt binary with runtime config.
+ * Env resolution.
+ *
+ * EXPO_PUBLIC_* values are inlined at build time, but only where the code names
+ * them literally — `process.env.EXPO_PUBLIC_SUPABASE_URL`. A computed lookup
+ * such as `process.env[key]` works in the browser dev server, which exposes the
+ * whole environment, and silently yields undefined in a release APK. That is how
+ * the v1.0–v1.2 APKs shipped unable to reach Supabase. The app config's `extra`
+ * carries the same values as a second route.
  */
-function env(key: string): string | undefined {
-  // deno-lint-ignore no-explicit-any
-  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, any>;
-  return process.env[key] ?? extra[key];
-}
+// deno-lint-ignore no-explicit-any
+const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, any>;
 
-const supabaseUrl = env("EXPO_PUBLIC_SUPABASE_URL");
-const supabaseAnonKey = env("EXPO_PUBLIC_SUPABASE_ANON_KEY");
+const supabaseUrl: string | undefined =
+  process.env.EXPO_PUBLIC_SUPABASE_URL || extra.EXPO_PUBLIC_SUPABASE_URL || undefined;
+const supabaseAnonKey: string | undefined =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.EXPO_PUBLIC_SUPABASE_ANON_KEY || undefined;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(

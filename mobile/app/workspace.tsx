@@ -22,12 +22,12 @@ import { useSession } from "../src/store/session";
  * for the part that travels well: reading what an agent produced, replying to
  * it, and starting something off.
  */
-function env(key: string): string | undefined {
-  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
-  return process.env[key] ?? (extra[key] as string | undefined);
-}
-
-const WORKSPACE_URL = env("EXPO_PUBLIC_WORKSPACE_URL");
+// Named literally so the release build inlines it; a computed process.env[key]
+// is undefined in an APK.
+const WORKSPACE_URL: string | undefined =
+  process.env.EXPO_PUBLIC_WORKSPACE_URL ||
+  ((Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>).EXPO_PUBLIC_WORKSPACE_URL ||
+  undefined;
 
 export default function Workspace() {
   const t = useTheme();

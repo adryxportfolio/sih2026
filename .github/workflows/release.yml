@@ -192,6 +192,25 @@ jobs:
           echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
           ./gradlew assembleRelease --no-daemon --stacktrace
 
+      - name: Verify the APK knows its backend
+        # EXPO_PUBLIC_* values are inlined only where code names them literally.
+        # v1.0-v1.2 shipped APKs whose bundle had no Supabase address at all, so
+        # sign-in and Samiksha AI could never work. Check the built bundle itself.
+        working-directory: mobile
+        run: |
+          HOST=$(grep '^EXPO_PUBLIC_SUPABASE_URL=' .env | cut -d= -f2 | sed -E 's#https?://##; s#/.*##')
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          COUNT=$(unzip -p "$APK" assets/index.android.bundle | grep -a -c "$HOST" || true)
+          echo "Supabase host occurrences in bundle: $COUNT"
+          if [ "$COUNT" = "0" ]; then
+            echo "::error::The release bundle does not contain the Supabase URL — the app would not reach its backend"
+            exit 1
+          fi
+          if unzip -p "$APK" assets/index.android.bundle | grep -a -q -E 'sk-or-v1|"role":"service_role"'; then
+            echo "::error::A server secret was found in the APK bundle"
+            exit 1
+          fi
+
       - name: Show APK output on failure
         if: failure()
         run: |

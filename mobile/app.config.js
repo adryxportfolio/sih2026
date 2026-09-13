@@ -40,7 +40,7 @@ module.exports = {
   expo: {
     name: IDENTITY.name,
     slug: IDENTITY.slug,
-    version: "1.2.0",
+    version: "1.2.1",
     orientation: "portrait",
     icon: "./assets/icon.png",
     scheme: IDENTITY.slug,
@@ -59,7 +59,7 @@ module.exports = {
       // Distinct package ids so both builds can sit on one device during a
       // demo without the installer treating the second as an upgrade.
       package: `in.gov.mospi.samiksha${IDENTITY.suffix}`,
-      versionCode: 3,
+      versionCode: 4,
       adaptiveIcon: {
         backgroundColor: INK,
         foregroundImage: "./assets/android-icon-foreground.png",
@@ -101,6 +101,10 @@ module.exports = {
       appVariant: VARIANT,
       // Read through expo-constants when the APK was built with values baked in.
       EXPO_PUBLIC_WORKSPACE_URL: process.env.EXPO_PUBLIC_WORKSPACE_URL,
+      // Client-safe by design (RLS protects the data); embedded here as well as
+      // inlined into the bundle so a release build always knows its backend.
+      EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     },
   },
 };
